@@ -1,0 +1,178 @@
+{
+  "sys": {
+    "schema_version": "0.3",
+    "execution_id": "ae-demo-showcase-healed",
+    "timestamp_start": "2026-03-04T10:30:00Z",
+    "timestamp_end": "2026-03-04T10:30:02Z",
+    "global_status": "PARTIAL_FAILURE"
+  },
+  "trace": [
+    {
+      "node": "0x1A",
+      "intent": "std.io.read",
+      "safety": "L0 (Pure)",
+      "status": "COMPLETED",
+      "duration_ms": 41,
+      "output": {
+        "batch_id": "BATCH-20260304-001",
+        "count": 10,
+        "transactions": [
+          {"id": "TX001", "amount": 45.00,    "currency": "USD", "country": "UK", "merchant": "Coffee & Bakery",        "timestamp": "2026-03-04T08:12:00Z"},
+          {"id": "TX002", "amount": 89.00,    "currency": "USD", "country": "US", "merchant": "Pharmacy",               "timestamp": "2026-03-04T08:34:00Z"},
+          {"id": "TX003", "amount": 120.00,   "currency": "USD", "country": "CA", "merchant": "Grocery Mart",           "timestamp": "2026-03-04T09:01:00Z"},
+          {"id": "TX004", "amount": 175.00,   "currency": "USD", "country": "US", "merchant": "Online Retailer",        "timestamp": "2026-03-04T09:17:00Z"},
+          {"id": "TX005", "amount": 230.00,   "currency": "USD", "country": "DE", "merchant": "Electronics Store",      "timestamp": "2026-03-04T09:38:00Z"},
+          {"id": "TX006", "amount": 310.00,   "currency": "USD", "country": "AU", "merchant": "Restaurant",             "timestamp": "2026-03-04T09:55:00Z"},
+          {"id": "TX007", "amount": 67.00,    "currency": "USD", "country": "US", "merchant": "Gas Station",            "timestamp": "2026-03-04T10:08:00Z"},
+          {"id": "TX008", "amount": 9850.00,  "currency": "USD", "country": "NG", "merchant": "Cash Transfer Service",  "timestamp": "2026-03-04T10:22:00Z"},
+          {"id": "TX009", "amount": 12400.00, "currency": "USD", "country": "RU", "merchant": "Crypto Exchange",        "timestamp": "2026-03-04T10:23:00Z"},
+          {"id": "TX010", "amount": 15200.00, "currency": "USD", "country": "CN", "merchant": "Unregistered Vendor",    "timestamp": "2026-03-04T10:24:00Z"}
+        ]
+      },
+      "validation_results": [],
+      "depends_on": [],
+      "asl_match": null,
+      "asl_warnings": ["intent 'std.io.read' not in registry"],
+      "heal_log": []
+    },
+    {
+      "node": "0x2B",
+      "intent": "std.proc.validate",
+      "safety": "L0 (Pure)",
+      "status": "COMPLETED",
+      "duration_ms": 52,
+      "output": {
+        "batch_id": "BATCH-20260304-001",
+        "invalid_ids": [],
+        "total_count": 10,
+        "valid_count": 10,
+        "transactions": [
+          {"id": "TX001", "amount": 45.00,    "currency": "USD", "country": "UK", "merchant": "Coffee & Bakery",        "timestamp": "2026-03-04T08:12:00Z"},
+          {"id": "TX002", "amount": 89.00,    "currency": "USD", "country": "US", "merchant": "Pharmacy",               "timestamp": "2026-03-04T08:34:00Z"},
+          {"id": "TX003", "amount": 120.00,   "currency": "USD", "country": "CA", "merchant": "Grocery Mart",           "timestamp": "2026-03-04T09:01:00Z"},
+          {"id": "TX004", "amount": 175.00,   "currency": "USD", "country": "US", "merchant": "Online Retailer",        "timestamp": "2026-03-04T09:17:00Z"},
+          {"id": "TX005", "amount": 230.00,   "currency": "USD", "country": "DE", "merchant": "Electronics Store",      "timestamp": "2026-03-04T09:38:00Z"},
+          {"id": "TX006", "amount": 310.00,   "currency": "USD", "country": "AU", "merchant": "Restaurant",             "timestamp": "2026-03-04T09:55:00Z"},
+          {"id": "TX007", "amount": 67.00,    "currency": "USD", "country": "US", "merchant": "Gas Station",            "timestamp": "2026-03-04T10:08:00Z"},
+          {"id": "TX008", "amount": 9850.00,  "currency": "USD", "country": "NG", "merchant": "Cash Transfer Service",  "timestamp": "2026-03-04T10:22:00Z"},
+          {"id": "TX009", "amount": 12400.00, "currency": "USD", "country": "RU", "merchant": "Crypto Exchange",        "timestamp": "2026-03-04T10:23:00Z"},
+          {"id": "TX010", "amount": 15200.00, "currency": "USD", "country": "CN", "merchant": "Unregistered Vendor",    "timestamp": "2026-03-04T10:24:00Z"}
+        ]
+      },
+      "validation_results": [
+        {"assertion": "valid_count == total_count", "passed": true, "action": "HALT"}
+      ],
+      "depends_on": ["0x1A"],
+      "asl_match": null,
+      "asl_warnings": [],
+      "heal_log": []
+    },
+    {
+      "node": "0x3C",
+      "intent": "std.ml.score",
+      "safety": "L0 (Pure)",
+      "status": "COMPLETED",
+      "duration_ms": 1843,
+      "output": {
+        "batch_id": "BATCH-20260304-001",
+        "total_count": 10,
+        "flagged_count": 3,
+        "transactions": [
+          {"id": "TX001", "amount": 45.00,    "currency": "USD", "country": "UK", "merchant": "Coffee & Bakery",        "timestamp": "2026-03-04T08:12:00Z", "anomaly_score": 0.0222},
+          {"id": "TX002", "amount": 89.00,    "currency": "USD", "country": "US", "merchant": "Pharmacy",               "timestamp": "2026-03-04T08:34:00Z", "anomaly_score": 0.044},
+          {"id": "TX003", "amount": 120.00,   "currency": "USD", "country": "CA", "merchant": "Grocery Mart",           "timestamp": "2026-03-04T09:01:00Z", "anomaly_score": 0.0593},
+          {"id": "TX004", "amount": 175.00,   "currency": "USD", "country": "US", "merchant": "Online Retailer",        "timestamp": "2026-03-04T09:17:00Z", "anomaly_score": 0.0864},
+          {"id": "TX005", "amount": 230.00,   "currency": "USD", "country": "DE", "merchant": "Electronics Store",      "timestamp": "2026-03-04T09:38:00Z", "anomaly_score": 0.1136},
+          {"id": "TX006", "amount": 310.00,   "currency": "USD", "country": "AU", "merchant": "Restaurant",             "timestamp": "2026-03-04T09:55:00Z", "anomaly_score": 0.1531},
+          {"id": "TX007", "amount": 67.00,    "currency": "USD", "country": "US", "merchant": "Gas Station",            "timestamp": "2026-03-04T10:08:00Z", "anomaly_score": 0.0331},
+          {"id": "TX008", "amount": 9850.00,  "currency": "USD", "country": "NG", "merchant": "Cash Transfer Service",  "timestamp": "2026-03-04T10:22:00Z", "anomaly_score": 1.0},
+          {"id": "TX009", "amount": 12400.00, "currency": "USD", "country": "RU", "merchant": "Crypto Exchange",        "timestamp": "2026-03-04T10:23:00Z", "anomaly_score": 1.0},
+          {"id": "TX010", "amount": 15200.00, "currency": "USD", "country": "CN", "merchant": "Unregistered Vendor",    "timestamp": "2026-03-04T10:24:00Z", "anomaly_score": 1.0}
+        ]
+      },
+      "validation_results": [
+        {"assertion": "flagged_count < total_count", "passed": true, "action": "RETRY"}
+      ],
+      "depends_on": ["0x2B"],
+      "asl_match": null,
+      "asl_warnings": [],
+      "heal_log": [
+        "[attempt 1] validation failed: flagged_count (10) == total_count (10) — baseline=1.0 flags everything",
+        "[attempt 1] calling Claude Haiku for repair...",
+        "[attempt 1] healed: replaced 'baseline = 1.0' with median computation from batch amounts",
+        "[attempt 1] retrying node 0x3C...",
+        "[attempt 1] retry succeeded — flagged_count=3, total_count=10 ✓"
+      ]
+    },
+    {
+      "node": "0x4D",
+      "intent": "std.proc.filter",
+      "safety": "L0 (Pure)",
+      "status": "COMPLETED",
+      "duration_ms": 48,
+      "output": {
+        "batch_id": "BATCH-20260304-001",
+        "count": 3,
+        "total_exposure": 37450.0,
+        "flagged": [
+          {"id": "TX008", "amount": 9850.00,  "currency": "USD", "country": "NG", "merchant": "Cash Transfer Service",  "anomaly_score": 1.0, "risk_label": "CRITICAL", "action": "BLOCK_AND_REVIEW"},
+          {"id": "TX009", "amount": 12400.00, "currency": "USD", "country": "RU", "merchant": "Crypto Exchange",        "anomaly_score": 1.0, "risk_label": "CRITICAL", "action": "BLOCK_AND_REVIEW"},
+          {"id": "TX010", "amount": 15200.00, "currency": "USD", "country": "CN", "merchant": "Unregistered Vendor",    "anomaly_score": 1.0, "risk_label": "CRITICAL", "action": "BLOCK_AND_REVIEW"}
+        ]
+      },
+      "validation_results": [],
+      "depends_on": ["0x3C"],
+      "asl_match": null,
+      "asl_warnings": [],
+      "heal_log": []
+    },
+    {
+      "node": "0x5E",
+      "intent": "std.io.write",
+      "safety": "L2 (State-Mod)",
+      "status": "COMPLETED",
+      "duration_ms": 61,
+      "output": {
+        "status": "AUDIT_COMPLETE",
+        "flagged_ids": ["TX008", "TX009", "TX010"],
+        "exposure_usd": 37450.0,
+        "report": "=== FRAUD DETECTION AUDIT REPORT ===\nBatch:          BATCH-20260304-001\nTransactions:   3 flagged\nTotal exposure: $37,450.00\n\nFlagged Transactions:\n  [CRITICAL] TX008: $9,850.00 via Cash Transfer Service (NG) — score 1.0\n  [CRITICAL] TX009: $12,400.00 via Crypto Exchange (RU) — score 1.0\n  [CRITICAL] TX010: $15,200.00 via Unregistered Vendor (CN) — score 1.0\n\nRecommended action: BLOCK_AND_REVIEW all flagged transactions."
+      },
+      "validation_results": [
+        {"assertion": "status == AUDIT_COMPLETE", "passed": true, "action": "HALT"}
+      ],
+      "depends_on": ["0x4D"],
+      "asl_match": null,
+      "asl_warnings": [],
+      "heal_log": []
+    },
+    {
+      "node": "0x6F",
+      "intent": "std.io.send",
+      "safety": "L3 (Net-Egress)",
+      "status": "BLOCKED",
+      "duration_ms": 0,
+      "output": {
+        "error": "Node 0x6F requires L3 (Net-Egress) but auto-approve is set to L2 (State-Mod). Execution blocked. Run with --safety l3 to permit net_egress nodes."
+      },
+      "validation_results": [],
+      "depends_on": ["0x5E"],
+      "asl_match": null,
+      "asl_warnings": [],
+      "heal_log": []
+    }
+  ],
+  "ledger": {
+    "$0xINGESTED":  {"batch_id": "BATCH-20260304-001", "count": 10},
+    "$0xVALIDATED": {"valid_count": 10, "total_count": 10, "invalid_ids": []},
+    "$0xSCORED":    {"flagged_count": 3, "total_count": 10},
+    "$0xFLAGGED":   {"count": 3, "total_exposure": 37450.0, "flagged": [{"id": "TX008"}, {"id": "TX009"}, {"id": "TX010"}]},
+    "$0xREPORT":    {"status": "AUDIT_COMPLETE", "flagged_ids": ["TX008", "TX009", "TX010"], "exposure_usd": 37450.0}
+  },
+  "telemetry": {
+    "total_duration_ms": 2045,
+    "nodes_executed": 6,
+    "nodes_failed": 1,
+    "nodes_skipped": 0
+  }
+}

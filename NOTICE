@@ -1,0 +1,42 @@
+Aether Kernel
+Copyright 2026 Aether Language Contributors
+
+This product includes software developed by third parties.
+
+---
+
+pest (https://github.com/pest-parser/pest)
+  License: MIT OR Apache-2.0
+  Copyright (c) 2022 Pest developers
+
+serde (https://github.com/serde-rs/serde)
+  License: MIT OR Apache-2.0
+  Copyright (c) 2014+ Erick Tryzelaar and David Tolnay
+
+serde_json (https://github.com/serde-rs/json)
+  License: MIT OR Apache-2.0
+  Copyright (c) 2014+ Erick Tryzelaar and David Tolnay
+
+tokio (https://github.com/tokio-rs/tokio)
+  License: MIT
+  Copyright (c) 2023 Tokio Contributors
+
+axum (https://github.com/tokio-rs/axum)
+  License: MIT
+  Copyright (c) 2021 Axum Contributors
+
+tower-http (https://github.com/tower-rs/tower-http)
+  License: MIT
+  Copyright (c) 2021 Tower Contributors
+
+reqwest (https://github.com/seanmonstar/reqwest)
+  License: MIT OR Apache-2.0
+  Copyright (c) 2016 Sean McArthur
+
+uuid (https://github.com/uuid-rs/uuid)
+  License: Apache-2.0 OR MIT
+  Copyright (c) 2013-2014 The Rust Project Developers
+
+chrono (https://github.com/chronotope/chrono)
+  License: MIT OR Apache-2.0
+  Copyright (c) 2014, Kang Seonghoon and contributors

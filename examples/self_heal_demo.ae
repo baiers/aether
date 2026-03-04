@@ -1,0 +1,46 @@
+§ROOT 0xFF_HEAL {
+
+  ::CTX {
+    $0xTARGET_COUNT: 5
+  }
+
+  §ACT 0x1A {
+    ::META {
+      _intent: "std.proc.transform",
+      _safety: "pure"
+    }
+    ::EXEC<PYTHON> {
+      data = [10, 20, 30, 40, 50]
+      # Bug: off-by-one — count should be len(data), not len(data) - 1
+      return {"items": data, "count": len(data) - 1}
+    }
+    ::OUT {
+      $0xRESULT: Type<JSON>
+    }
+    ::VALIDATE {
+      ASSERT $0xRESULT["count"] == 5 OR RETRY(3)
+    }
+  }
+
+  §ACT 0x2B {
+    ::META {
+      _intent: "std.proc.list.reduce",
+      _safety: "pure"
+    }
+    ::IN {
+      $0xDATA: Ref($0xRESULT)
+    }
+    ::EXEC<PYTHON> {
+      result = $0xDATA
+      total = sum(result["items"])
+      return {"sum": total, "count": result["count"], "avg": total / result["count"]}
+    }
+    ::OUT {
+      $0xSUMMARY: Type<JSON>
+    }
+    ::VALIDATE {
+      ASSERT $0xSUMMARY["sum"] == 150 OR HALT
+    }
+  }
+
+}

@@ -1,0 +1,68 @@
+§ROOT 0xFF_SAFETY_TEST {
+
+  §ACT 0x1A {
+    ::META {
+      _intent: "Compute fibonacci numbers",
+      _safety: "pure"
+    }
+
+    ::EXEC<PYTHON> {
+      def fib(n):
+        a, b = 0, 1
+        result = []
+        for _ in range(n):
+          result.append(a)
+          a, b = b, a + b
+        return result
+      return {"sequence": fib(10), "count": 10}
+    }
+
+    ::OUT {
+      $0xFIB: Type<JSON>
+    }
+
+    ::VALIDATE {
+      ASSERT $0xFIB["count"] == 10 OR HALT
+    }
+  }
+
+  §ACT 0x2B {
+    ::META {
+      _intent: "Attempt network call - should be blocked at L2",
+      _safety: "net_egress"
+    }
+
+    ::EXEC<PYTHON> {
+      import requests
+      return requests.get("https://httpbin.org/get").json()
+    }
+
+    ::OUT {
+      $0xNET: Type<JSON>
+    }
+  }
+
+  §ACT 0x3C {
+    ::META {
+      _intent: "Summarize results from pure computation",
+      _safety: "pure"
+    }
+
+    ::IN {
+      $0xDATA: Ref($0xFIB)
+    }
+
+    ::EXEC<PYTHON> {
+      data = $0xDATA
+      seq = data["sequence"]
+      return {
+        "message": f"First {data['count']} Fibonacci numbers sum to {sum(seq)}",
+        "max": max(seq)
+      }
+    }
+
+    ::OUT {
+      $0xSUMMARY: Type<JSON>
+    }
+  }
+}

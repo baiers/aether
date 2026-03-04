@@ -1,0 +1,219 @@
+§ROOT 0xFF_FRAUD {
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Aether Demo — Financial Transaction Anomaly Monitor
+  //
+  // A 6-node pipeline that ingests a batch of financial transactions,
+  // validates schema, scores anomalies, filters high-risk transactions,
+  // compiles an audit report, and sends a fraud alert.
+  //
+  // Demonstrates:
+  //   • Two safety levels (pure → state_mod → net_egress)
+  //   • Self-healing RETRY: node 0x3C has a deliberate scoring bug;
+  //     Claude Haiku rewrites the formula at runtime so the pipeline continues
+  //   • Full audit trail: every decision is captured in NodeTrace + ledger
+  //   • Safety gate: node 0x6F is BLOCKED at default --safety l2
+  //     (requires --safety l3 to send the alert)
+  //
+  // Run:  cargo run --bin aether -- examples/demo_showcase.ae
+  // Full: cargo run --bin aether -- examples/demo_showcase.ae --safety l3
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Node 1: Ingest ────────────────────────────────────────────────────────
+  // In production: reads from a message queue or transactions database (read_only).
+  // Here: synthetic batch with 7 normal and 3 high-value suspicious transactions.
+  §ACT 0x1A {
+    ::META {
+      _intent: "std.io.read",
+      _safety: "pure"
+    }
+    ::EXEC<PYTHON> {
+      return {
+        "transactions": [
+          {"id": "TX001", "amount": 45.00,    "currency": "USD", "country": "UK", "merchant": "Coffee & Bakery",        "timestamp": "2026-03-04T08:12:00Z"},
+          {"id": "TX002", "amount": 89.00,    "currency": "USD", "country": "US", "merchant": "Pharmacy",               "timestamp": "2026-03-04T08:34:00Z"},
+          {"id": "TX003", "amount": 120.00,   "currency": "USD", "country": "CA", "merchant": "Grocery Mart",           "timestamp": "2026-03-04T09:01:00Z"},
+          {"id": "TX004", "amount": 175.00,   "currency": "USD", "country": "US", "merchant": "Online Retailer",        "timestamp": "2026-03-04T09:17:00Z"},
+          {"id": "TX005", "amount": 230.00,   "currency": "USD", "country": "DE", "merchant": "Electronics Store",      "timestamp": "2026-03-04T09:38:00Z"},
+          {"id": "TX006", "amount": 310.00,   "currency": "USD", "country": "AU", "merchant": "Restaurant",             "timestamp": "2026-03-04T09:55:00Z"},
+          {"id": "TX007", "amount": 67.00,    "currency": "USD", "country": "US", "merchant": "Gas Station",            "timestamp": "2026-03-04T10:08:00Z"},
+          {"id": "TX008", "amount": 9850.00,  "currency": "USD", "country": "NG", "merchant": "Cash Transfer Service",  "timestamp": "2026-03-04T10:22:00Z"},
+          {"id": "TX009", "amount": 12400.00, "currency": "USD", "country": "RU", "merchant": "Crypto Exchange",        "timestamp": "2026-03-04T10:23:00Z"},
+          {"id": "TX010", "amount": 15200.00, "currency": "USD", "country": "CN", "merchant": "Unregistered Vendor",    "timestamp": "2026-03-04T10:24:00Z"}
+        ],
+        "batch_id": "BATCH-20260304-001",
+        "count": 10
+      }
+    }
+    ::OUT { $0xINGESTED: Type<JSON> }
+  }
+
+  // ── Node 2: Schema Validation ─────────────────────────────────────────────
+  // Every transaction must have required fields and a positive amount.
+  // HALT immediately if any record is malformed — no partial processing.
+  §ACT 0x2B {
+    ::META {
+      _intent: "std.proc.validate",
+      _safety: "pure"
+    }
+    ::IN { $0xBATCH: Ref($0xINGESTED) }
+    ::EXEC<PYTHON> {
+      data     = $0xBATCH
+      required = {"id", "amount", "currency", "country", "merchant", "timestamp"}
+      valid, invalid = [], []
+      for tx in data["transactions"]:
+        if required.issubset(tx.keys()) and isinstance(tx["amount"], (int, float)) and tx["amount"] > 0:
+          valid.append(tx)
+        else:
+          invalid.append(tx.get("id", "UNKNOWN"))
+      return {
+        "transactions": valid,
+        "invalid_ids":  invalid,
+        "valid_count":  len(valid),
+        "total_count":  data["count"],
+        "batch_id":     data["batch_id"]
+      }
+    }
+    ::OUT { $0xVALIDATED: Type<JSON> }
+    ::VALIDATE {
+      ASSERT $0xVALIDATED["valid_count"] == $0xVALIDATED["total_count"] OR HALT
+    }
+  }
+
+  // ── Node 3: Anomaly Scoring ───────────────────────────────────────────────
+  // Scores each transaction: how many times its amount exceeds the typical
+  // (median) transaction in this batch. Score 1.0 = 10x or more the median.
+  //
+  // DELIBERATE BUG: uses hardcoded baseline of 1.0 instead of computing the
+  // median from actual transaction amounts. With baseline=1.0, every amount
+  // (even $45) is >10x the baseline, so ALL 10 transactions get score=1.0.
+  // flagged_count == total_count == 10 → ASSERT fails → RETRY(2) fires.
+  //
+  // heal_node_code() sends the failing code + assertion + actual output to
+  // Claude Haiku, which rewrites the baseline computation to use median(amounts).
+  // On retry: baseline≈$202, only the 3 high-value transactions score >0.7.
+  §ACT 0x3C {
+    ::META {
+      _intent: "std.ml.score",
+      _safety: "pure"
+    }
+    ::IN { $0xDATA: Ref($0xVALIDATED) }
+    ::EXEC<PYTHON> {
+      data = $0xDATA
+      # Bug: hardcoded baseline — should be median(amounts) from the batch
+      baseline = 1.0
+      scored = []
+      for tx in data["transactions"]:
+        ratio         = tx["amount"] / max(baseline, 1.0)
+        anomaly_score = round(min(ratio / 10.0, 1.0), 4)
+        scored.append({**tx, "anomaly_score": anomaly_score})
+      flagged_count = sum(1 for tx in scored if tx["anomaly_score"] > 0.7)
+      return {
+        "transactions":  scored,
+        "total_count":   data["total_count"],
+        "flagged_count": flagged_count,
+        "batch_id":      data["batch_id"]
+      }
+    }
+    ::OUT { $0xSCORED: Type<JSON> }
+    ::VALIDATE {
+      // A valid anomaly scorer flags a minority of transactions.
+      // If every transaction is flagged, the baseline is wrong.
+      ASSERT $0xSCORED["flagged_count"] < $0xSCORED["total_count"] OR RETRY(2)
+    }
+  }
+
+  // ── Node 4: Filter High-Risk ──────────────────────────────────────────────
+  // Extract flagged transactions and assign risk labels.
+  §ACT 0x4D {
+    ::META {
+      _intent: "std.proc.filter",
+      _safety: "pure"
+    }
+    ::IN { $0xSRC: Ref($0xSCORED) }
+    ::EXEC<PYTHON> {
+      data    = $0xSRC
+      flagged = []
+      for tx in data["transactions"]:
+        if tx["anomaly_score"] > 0.7:
+          label = "CRITICAL" if tx["anomaly_score"] >= 0.95 else "HIGH"
+          flagged.append({**tx, "risk_label": label, "action": "BLOCK_AND_REVIEW"})
+      total_exposure = round(sum(tx["amount"] for tx in flagged), 2)
+      return {
+        "flagged":        flagged,
+        "count":          len(flagged),
+        "total_exposure": total_exposure,
+        "batch_id":       data["batch_id"]
+      }
+    }
+    ::OUT { $0xFLAGGED: Type<JSON> }
+  }
+
+  // ── Node 5: Compile Audit Report ──────────────────────────────────────────
+  // Produces the compliance audit record for this batch.
+  // Declared state_mod because in production this writes to a compliance DB.
+  // Requires --safety l2 or higher (default). At --safety l1 (read-only),
+  // Aether would block this node before any write occurs.
+  §ACT 0x5E {
+    ::META {
+      _intent: "std.io.write",
+      _safety: "state_mod"
+    }
+    ::IN { $0xALERTS: Ref($0xFLAGGED) }
+    ::EXEC<PYTHON> {
+      data  = $0xALERTS
+      lines = [
+        "=== FRAUD DETECTION AUDIT REPORT ===",
+        f"Batch:          {data['batch_id']}",
+        f"Transactions:   {data['count']} flagged",
+        f"Total exposure: ${data['total_exposure']:,.2f}",
+        "",
+        "Flagged Transactions:"
+      ]
+      for tx in data["flagged"]:
+        lines.append(
+          f"  [{tx['risk_label']}] {tx['id']}: ${tx['amount']:,.2f} "
+          f"via {tx['merchant']} ({tx['country']}) — score {tx['anomaly_score']}"
+        )
+      lines += ["", "Recommended action: BLOCK_AND_REVIEW all flagged transactions."]
+      return {
+        "report":       "\n".join(lines),
+        "flagged_ids":  [tx["id"] for tx in data["flagged"]],
+        "exposure_usd": data["total_exposure"],
+        "status":       "AUDIT_COMPLETE"
+      }
+    }
+    ::OUT { $0xREPORT: Type<JSON> }
+    ::VALIDATE {
+      ASSERT $0xREPORT["status"] == "AUDIT_COMPLETE" OR HALT
+    }
+  }
+
+  // ── Node 6: Send Fraud Alert ──────────────────────────────────────────────
+  // Notifies the fraud team. Declared net_egress because it sends data outside
+  // the local process (email / webhook / SIEM in production).
+  //
+  // SAFETY GATE: with default --safety l2, Aether BLOCKS this node.
+  // You will see status="BLOCKED" in the NodeTrace output.
+  // To allow the alert: cargo run --bin aether -- examples/demo_showcase.ae --safety l3
+  §ACT 0x6F {
+    ::META {
+      _intent: "std.io.send",
+      _safety: "net_egress"
+    }
+    ::IN { $0xALERT: Ref($0xREPORT) }
+    ::EXEC<PYTHON> {
+      data = $0xALERT
+      # Simulated alert — in production: POST to webhook / send email / write to SIEM
+      return {
+        "alert_sent":  True,
+        "recipients":  ["fraud-team@company.com", "compliance@company.com"],
+        "flagged_ids": data["flagged_ids"],
+        "exposure_usd": data["exposure_usd"],
+        "status":      "ALERT_SENT"
+      }
+    }
+    ::OUT { $0xALERT_RESULT: Type<JSON> }
+  }
+
+}

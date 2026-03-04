@@ -1,0 +1,108 @@
+§ROOT 0xFF_RECOVERY {
+
+  // 8-node pipeline with deliberate failure at node 0x5E to trigger ASSERT/RETRY.
+  // Node 0x5E contains a bug: uses score field instead of id for checksum,
+  // producing 550%100=50 instead of the correct sum(1..10)%100=55.
+  // The RETRY(3) triggers heal_node_code() which calls Claude Haiku to fix the code.
+
+  §ACT 0x1A {
+    ::META { _intent: "std.io.read", _safety: "fs_read" }
+    ::EXEC<PYTHON> {
+      return {"rows": [{"id": i, "val": i * 3, "tag": "raw"} for i in range(1, 11)], "count": 10}
+    }
+    ::OUT { $0xINGESTED: Type<JSON> }
+  }
+
+  §ACT 0x2B {
+    ::META { _intent: "std.proc.transform", _safety: "pure" }
+    ::IN { $0xSRC: Ref($0xINGESTED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      normalized = [{"id": r["id"], "val": round(r["val"] / 30.0, 4), "tag": "norm"} for r in data["rows"]]
+      return {"rows": normalized, "count": data["count"]}
+    }
+    ::OUT { $0xNORMALIZED: Type<JSON> }
+  }
+
+  §ACT 0x3C {
+    ::META { _intent: "std.proc.list.reduce", _safety: "pure" }
+    ::IN { $0xSRC: Ref($0xNORMALIZED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      seen, deduped = set(), []
+      for r in data["rows"]:
+        if r["id"] not in seen:
+          seen.add(r["id"])
+          deduped.append(r)
+      return {"rows": deduped, "count": len(deduped)}
+    }
+    ::OUT { $0xDEDUPED: Type<JSON> }
+  }
+
+  §ACT 0x4D {
+    ::META { _intent: "std.proc.transform", _safety: "pure" }
+    ::IN { $0xSRC: Ref($0xDEDUPED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      enriched = [dict(r, score=r["val"] * 100.0) for r in data["rows"]]
+      return {"rows": enriched, "count": data["count"]}
+    }
+    ::OUT { $0xENRICHED: Type<JSON> }
+  }
+
+  // Node 0x5E: deliberate checksum bug — aggregates score instead of id.
+  // sum(score for row in rows) % 100 = 550 % 100 = 50, but expected is 55.
+  // RETRY(3) triggers; heal_node_code() corrects to sum(r["id"] ...) % 100.
+  §ACT 0x5E {
+    ::META { _intent: "std.math.sum", _safety: "pure" }
+    ::IN { $0xSRC: Ref($0xENRICHED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      // Bug: uses score (10*id) instead of id for checksum
+      checksum = sum(int(r["score"]) for r in data["rows"]) % 100
+      return {"rows": data["rows"], "checksum": checksum, "count": data["count"]}
+    }
+    ::OUT { $0xTRANSFORMED: Type<JSON> }
+    ::VALIDATE {
+      ASSERT $0xTRANSFORMED["checksum"] == 55 OR RETRY(3)
+    }
+  }
+
+  §ACT 0x6F {
+    ::META { _intent: "std.math.aggregate", _safety: "pure" }
+    ::IN { $0xSRC: Ref($0xTRANSFORMED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      scores = [r["score"] for r in data["rows"]]
+      return {"sum": sum(scores), "avg": sum(scores)/len(scores), "max": max(scores), "count": data["count"]}
+    }
+    ::OUT { $0xAGGREGATED: Type<JSON> }
+  }
+
+  §ACT 0x7A {
+    ::META { _intent: "std.text.format", _safety: "pure" }
+    ::IN { $0xSRC: Ref($0xAGGREGATED) }
+    ::EXEC<PYTHON> {
+      d = $0xSRC
+      return {
+        "report": f"Processed {d['count']} records: sum={d['sum']:.2f}, avg={d['avg']:.2f}, max={d['max']:.2f}",
+        "status": "ok"
+      }
+    }
+    ::OUT { $0xFORMATTED: Type<JSON> }
+  }
+
+  §ACT 0x8B {
+    ::META { _intent: "std.io.write", _safety: "fs_write" }
+    ::IN { $0xDATA: Ref($0xFORMATTED) }
+    ::EXEC<PYTHON> {
+      data = $0xDATA
+      return {"written": True, "output": data["report"], "status": data["status"]}
+    }
+    ::OUT { $0xOUTPUT: Type<JSON> }
+    ::VALIDATE {
+      ASSERT $0xOUTPUT["written"] == true OR HALT
+    }
+  }
+
+}

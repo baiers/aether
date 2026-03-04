@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aether Lens</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f0f16;
+      --surface:  #161622;
+      --border:   #2a2a3d;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --accent:   #6366f1;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --orange:   #f97316;
+      --amber:    #f59e0b;
+      --gray:     #475569;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    #header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    #header .logo {
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+    }
+
+    #header .sep { color: var(--border); }
+
+    #header .exec-id {
+      color: var(--muted);
+      font-size: 11px;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #header .status-badge {
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .badge-success  { background: #14532d; color: var(--green); }
+    .badge-partial  { background: #431407; color: var(--amber); }
+    .badge-unknown  { background: #1e1b4b; color: var(--accent); }
+
+    #header .duration { color: var(--muted); font-size: 11px; }
+
+    #load-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    #load-btn:hover { opacity: 0.85; }
+    #file-input { display: none; }
+
+    /* ── Body ────────────────────────────────────────────────── */
+    #body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── DAG Panel ───────────────────────────────────────────── */
+    #dag-panel {
+      flex: 1;
+      overflow: auto;
+      padding: 24px;
+      position: relative;
+    }
+
+    #dag-container {
+      position: relative;
+      min-height: 200px;
+    }
+
+    svg#dag-svg {
+      position: absolute;
+      top: 0; left: 0;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .dag-level {
+      display: flex;
+      gap: 16px;
+      justify-content: flex-start;
+      margin-bottom: 48px;
+      position: relative;
+    }
+
+    .node-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      width: 200px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      position: relative;
+    }
+    .node-card:hover      { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .node-card.selected   { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+
+    .node-card.status-COMPLETED        { border-left: 3px solid var(--green);  }
+    .node-card.status-COMPLETED.healed { border-left: 3px solid var(--amber);  }
+    .node-card.status-VALIDATION_FAILED{ border-left: 3px solid var(--red);    }
+    .node-card.status-BLOCKED          { border-left: 3px solid var(--orange); }
+    .node-card.status-ERROR,
+    .node-card.status-EXEC_ERROR,
+    .node-card.status-TYPE_ERROR       { border-left: 3px solid var(--red);    }
+    .node-card.status-SKIPPED          { border-left: 3px solid var(--gray);   opacity: 0.65; }
+
+    .node-id {
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .node-intent {
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+
+    .node-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .node-status {
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .s-COMPLETED         { color: var(--green);  }
+    .s-VALIDATION_FAILED { color: var(--red);    }
+    .s-BLOCKED           { color: var(--orange); }
+    .s-ERROR,
+    .s-EXEC_ERROR,
+    .s-TYPE_ERROR        { color: var(--red);    }
+    .s-SKIPPED           { color: var(--gray);   }
+
+    .node-duration { font-size: 10px; color: var(--muted); }
+
+    .node-asl {
+      margin-top: 5px;
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .node-asl .asl-ok { color: var(--green); }
+
+    .heal-badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--amber);
+      color: #000;
+      font-size: 9px;
+      font-weight: bold;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    /* ── Detail Panel ────────────────────────────────────────── */
+    #detail-panel {
+      width: 340px;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #detail-panel h3 {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    #detail-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .detail-section {
+      margin-bottom: 16px;
+    }
+
+    .detail-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 12px;
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .detail-value.green  { color: var(--green);  }
+    .detail-value.red    { color: var(--red);    }
+    .detail-value.amber  { color: var(--amber);  }
+    .detail-value.orange { color: var(--orange); }
+    .detail-value.gray   { color: var(--gray);   }
+
+    pre.json-view {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      overflow: auto;
+      max-height: 150px;
+      white-space: pre;
+      color: #93c5fd;
+    }
+
+    .validation-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .val-icon { font-size: 12px; flex-shrink: 0; }
+    .val-text { color: var(--text); word-break: break-word; }
+
+    .heal-log-item {
+      background: #1c1400;
+      border-left: 2px solid var(--amber);
+      padding: 4px 8px;
+      font-size: 10px;
+      color: var(--amber);
+      margin-bottom: 3px;
+      border-radius: 0 3px 3px 0;
+    }
+
+    .depends-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .dep-tag {
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* ── Ledger Panel ────────────────────────────────────────── */
+    #ledger-panel {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      flex-shrink: 0;
+      align-items: flex-start;
+    }
+
+    .ledger-entry {
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .ledger-key {
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .ledger-val {
+      font-size: 10px;
+      color: var(--muted);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    #empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: var(--muted);
+    }
+    #empty-state .big { font-size: 36px; margin-bottom: 12px; }
+    #empty-state p { font-size: 13px; }
+
+    /* ── SVG edges ───────────────────────────────────────────── */
+    .edge-line {
+      stroke: var(--border);
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <span class="logo">&#9670; AETHER LENS</span>
+  <span class="sep">|</span>
+  <span class="exec-id" id="exec-id">No log loaded</span>
+  <span id="status-badge" class="status-badge badge-unknown" style="display:none"></span>
+  <span class="duration" id="duration"></span>
+  <button id="load-btn" onclick="document.getElementById('file-input').click()">Load JSON</button>
+  <input type="file" id="file-input" accept=".json" onchange="loadFile(event)">
+</div>
+
+<!-- Body -->
+<div id="body">
+  <!-- DAG -->
+  <div id="dag-panel">
+    <div id="dag-container">
+      <svg id="dag-svg" width="1" height="1"></svg>
+      <div id="dag-levels"></div>
+      <div id="empty-state">
+        <div class="big">&#9670;</div>
+        <p>Load an <strong>output.ae.json</strong> to visualize the execution graph</p>
+        <p style="margin-top:8px;font-size:11px;color:#334155">
+          Run: <code style="color:#6366f1">aether examples/demo.ae</code>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail -->
+  <div id="detail-panel">
+    <h3>Node Detail</h3>
+    <div id="detail-content">
+      <p style="color:var(--muted);font-size:12px;margin-top:16px">Click a node to inspect it.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Ledger strip -->
+<div id="ledger-panel">
+  <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;flex-shrink:0">Ledger</span>
+</div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let log = null;
+let nodePositions = {}; // node_id → {x, y, w, h}
+let selectedNode = null;
+
+// ── File loading ────────────────────────────────────────────────────────────
+function loadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      log = JSON.parse(e.target.result);
+      render(log);
+    } catch(err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Drag-and-drop
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try { log = JSON.parse(ev.target.result); render(log); }
+    catch(err) { alert('Invalid JSON: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+// ── Main render ─────────────────────────────────────────────────────────────
+function render(log) {
+  document.getElementById('empty-state').style.display = 'none';
+
+  // Header
+  const sys = log.sys;
+  document.getElementById('exec-id').textContent =
+    (sys.execution_id || 'unknown') + '  ·  ' +
+    new Date(sys.timestamp_start).toLocaleTimeString();
+
+  const badge = document.getElementById('status-badge');
+  badge.style.display = '';
+  badge.textContent = sys.global_status;
+  badge.className = 'status-badge ' +
+    (sys.global_status === 'SUCCESS' ? 'badge-success' : 'badge-partial');
+
+  const ms = log.telemetry.total_duration_ms;
+  document.getElementById('duration').textContent =
+    log.telemetry.nodes_executed + ' nodes  ·  ' + ms + 'ms';
+
+  renderLedger(log.ledger);
+  renderDAG(log.trace);
+}
+
+// ── Ledger ───────────────────────────────────────────────────────────────────
+function renderLedger(ledger) {
+  const panel = document.getElementById('ledger-panel');
+  panel.innerHTML = '<span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;flex-shrink:0">Ledger</span>';
+  for (const [k, v] of Object.entries(ledger)) {
+    const entry = document.createElement('div');
+    entry.className = 'ledger-entry';
+    const valStr = JSON.stringify(v);
+    entry.innerHTML = `<div class="ledger-key">${esc(k)}</div>
+      <div class="ledger-val" title="${esc(valStr)}">${esc(valStr)}</div>`;
+    entry.onclick = () => showLedgerDetail(k, v);
+    panel.appendChild(entry);
+  }
+}
+
+function showLedgerDetail(k, v) {
+  const content = document.getElementById('detail-content');
+  content.innerHTML = `
+    <div class="detail-section">
+      <div class="detail-label">Ledger Key</div>
+      <div class="detail-value" style="color:var(--accent)">${esc(k)}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Value</div>
+      <pre class="json-view">${esc(JSON.stringify(v, null, 2))}</pre>
+    </div>`;
+}
+
+// ── DAG layout ───────────────────────────────────────────────────────────────
+function assignLevels(traces) {
+  const levels = {};   // node_id → level number
+  const deps = {};     // node_id → [dep_node_ids]
+
+  for (const t of traces) {
+    deps[t.node] = t.depends_on || [];
+  }
+
+  // Iteratively assign levels (max predecessor + 1)
+  let changed = true;
+  for (const t of traces) levels[t.node] = 0;
+
+  while (changed) {
+    changed = false;
+    for (const t of traces) {
+      const maxDepLevel = deps[t.node].reduce(
+        (acc, d) => Math.max(acc, (levels[d] ?? 0) + 1), 0
+      );
+      if (maxDepLevel > levels[t.node]) {
+        levels[t.node] = maxDepLevel;
+        changed = true;
+      }
+    }
+  }
+
+  // Group by level, preserving trace order within level
+  const byLevel = {};
+  for (const t of traces) {
+    const lvl = levels[t.node];
+    if (!byLevel[lvl]) byLevel[lvl] = [];
+    byLevel[lvl].push(t);
+  }
+
+  return { levels, byLevel };
+}
+
+function renderDAG(traces) {
+  nodePositions = {};
+  selectedNode = null;
+
+  const container = document.getElementById('dag-levels');
+  container.innerHTML = '';
+
+  if (!traces || traces.length === 0) return;
+
+  const { byLevel } = assignLevels(traces);
+  const sortedLevels = Object.keys(byLevel).map(Number).sort((a, b) => a - b);
+
+  // Build level rows
+  for (const lvl of sortedLevels) {
+    const row = document.createElement('div');
+    row.className = 'dag-level';
+    row.dataset.level = lvl;
+    for (const t of byLevel[lvl]) {
+      row.appendChild(buildNodeCard(t));
+    }
+    container.appendChild(row);
+  }
+
+  // After DOM is laid out, measure positions and draw edges
+  requestAnimationFrame(() => {
+    measurePositions();
+    drawEdges(traces);
+  });
+}
+
+function buildNodeCard(trace) {
+  const healed = trace.heal_log && trace.heal_log.length > 0;
+  const statusClass = 'status-' + trace.status;
+  const healedClass = healed ? ' healed' : '';
+
+  const intentShort = (trace.intent || '').replace(/^std\./, '');
+
+  const statusColor = {
+    COMPLETED: 's-COMPLETED',
+    VALIDATION_FAILED: 's-VALIDATION_FAILED',
+    BLOCKED: 's-BLOCKED',
+    ERROR: 's-ERROR',
+    EXEC_ERROR: 's-ERROR',
+    TYPE_ERROR: 's-ERROR',
+    SKIPPED: 's-SKIPPED',
+  }[trace.status] || 's-SKIPPED';
+
+  const aslHtml = trace.asl_match
+    ? `<div class="node-asl"><span class="asl-ok">&#10003;</span> ${esc(trace.asl_match)}</div>`
+    : '';
+
+  const healBadge = healed ? `<span class="heal-badge">HEALED</span>` : '';
+
+  const card = document.createElement('div');
+  card.className = `node-card ${statusClass}${healedClass}`;
+  card.dataset.node = trace.node;
+  card.innerHTML = `
+    ${healBadge}
+    <div class="node-id">${esc(trace.node)}</div>
+    <div class="node-intent" title="${esc(trace.intent || '')}">${esc(intentShort)}</div>
+    <div class="node-meta">
+      <span class="node-status ${statusColor}">${esc(trace.status)}</span>
+      <span class="node-duration">${trace.duration_ms}ms</span>
+    </div>
+    ${aslHtml}`;
+
+  card.onclick = () => selectNode(trace, card);
+  return card;
+}
+
+function measurePositions() {
+  const containerRect = document.getElementById('dag-container').getBoundingClientRect();
+  document.querySelectorAll('.node-card').forEach(el => {
+    const r = el.getBoundingClientRect();
+    nodePositions[el.dataset.node] = {
+      x: r.left - containerRect.left,
+      y: r.top  - containerRect.top,
+      w: r.width,
+      h: r.height,
+    };
+  });
+}
+
+function drawEdges(traces) {
+  const container = document.getElementById('dag-container');
+  const svg = document.getElementById('dag-svg');
+  const w = container.scrollWidth;
+  const h = container.scrollHeight;
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.innerHTML = '';
+
+  for (const t of traces) {
+    const to = nodePositions[t.node];
+    if (!to) continue;
+    for (const depId of (t.depends_on || [])) {
+      const from = nodePositions[depId];
+      if (!from) continue;
+
+      // From: bottom-center of parent, To: top-center of child
+      const x1 = from.x + from.w / 2;
+      const y1 = from.y + from.h;
+      const x2 = to.x + to.w / 2;
+      const y2 = to.y;
+
+      const cy = (y1 + y2) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'edge-line');
+      path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`);
+      svg.appendChild(path);
+
+      // Arrow head
+      const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      arrow.setAttribute('points', `${x2},${y2} ${x2-4},${y2-8} ${x2+4},${y2-8}`);
+      arrow.setAttribute('fill', '#2a2a3d');
+      svg.appendChild(arrow);
+    }
+  }
+}
+
+// ── Node detail panel ────────────────────────────────────────────────────────
+function selectNode(trace, card) {
+  document.querySelectorAll('.node-card.selected').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedNode = trace.node;
+
+  const content = document.getElementById('detail-content');
+
+  const statusColor = {
+    COMPLETED: trace.heal_log && trace.heal_log.length ? 'amber' : 'green',
+    VALIDATION_FAILED: 'red',
+    BLOCKED: 'orange',
+    ERROR: 'red', EXEC_ERROR: 'red', TYPE_ERROR: 'red',
+    SKIPPED: 'gray',
+  }[trace.status] || 'gray';
+
+  // Depends on section
+  const depsHtml = (trace.depends_on && trace.depends_on.length)
+    ? `<div class="depends-list">${trace.depends_on.map(d =>
+        `<span class="dep-tag">${esc(d)}</span>`).join('')}</div>`
+    : `<span style="color:var(--muted)">none (root node)</span>`;
+
+  // Validations
+  const valsHtml = (trace.validation_results && trace.validation_results.length)
+    ? trace.validation_results.map(v => `
+        <div class="validation-item">
+          <span class="val-icon">${v.passed ? '&#10003;' : '&#10007;'}</span>
+          <span class="val-text" style="color:${v.passed ? 'var(--green)' : 'var(--red)'}">
+            ${esc(v.assertion)}
+            <span style="color:var(--muted)"> [${esc(v.action)}]</span>
+          </span>
+        </div>`).join('')
+    : `<span style="color:var(--muted)">none</span>`;
+
+  // Heal log
+  const healHtml = (trace.heal_log && trace.heal_log.length)
+    ? trace.heal_log.map(h => `<div class="heal-log-item">${esc(h)}</div>`).join('')
+    : `<span style="color:var(--muted)">none</span>`;
+
+  // Output
+  const outputStr = JSON.stringify(trace.output, null, 2);
+
+  content.innerHTML = `
+    <div class="detail-section">
+      <div class="detail-label">Node</div>
+      <div class="detail-value" style="color:var(--accent)">${esc(trace.node)}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Intent</div>
+      <div class="detail-value">${esc(trace.intent || '—')}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Safety</div>
+      <div class="detail-value">${esc(trace.safety || '—')}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Status</div>
+      <div class="detail-value ${statusColor}">${esc(trace.status)}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Duration</div>
+      <div class="detail-value">${trace.duration_ms}ms</div>
+    </div>
+    ${trace.asl_match ? `
+    <div class="detail-section">
+      <div class="detail-label">ASL Match</div>
+      <div class="detail-value green">&#10003; ${esc(trace.asl_match)}</div>
+    </div>` : ''}
+    <div class="detail-section">
+      <div class="detail-label">Depends On</div>
+      ${depsHtml}
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Output</div>
+      <pre class="json-view">${esc(outputStr.length > 500 ? outputStr.slice(0, 500) + '\n…' : outputStr)}</pre>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Validations</div>
+      ${valsHtml}
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Heal Log</div>
+      ${healHtml}
+    </div>`;
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Auto-load output.ae.json if served from same directory ────────────────────
+(async function autoLoad() {
+  try {
+    const r = await fetch('output.ae.json');
+    if (r.ok) { log = await r.json(); render(log); }
+  } catch {}
+})();
+</script>
+</body>
+</html>

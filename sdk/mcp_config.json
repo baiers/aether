@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "aether-kernel": {
+      "command": "aether-mcp",
+      "args": [],
+      "description": "Aether Kernel — Deterministic agent orchestration runtime. Validates and executes .ae programs with safety enforcement, typed state ledger, and structured execution logs."
+    }
+  }
+}

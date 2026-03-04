@@ -1,0 +1,94 @@
+§ROOT 0xFF_BRANCH {
+
+  ::CTX {
+    $0xSCHEMA: "sensor_pipeline_v1"
+  }
+
+  §ACT 0x1A {
+    ::META {
+      _intent: "std.io.fetch",
+      _safety: "net_egress"
+    }
+    ::EXEC<PYTHON> {
+      return {
+        "records": [
+          {"id": "R001", "value": 42.5, "source": "sensor_a"},
+          {"id": "R002", "value": -7.3, "source": "sensor_b"},
+          {"id": "R003", "value": 19.1, "source": "sensor_a"}
+        ],
+        "count": 3
+      }
+    }
+    ::OUT { $0xRAW: Type<JSON> }
+  }
+
+  §ACT 0x2B {
+    ::META {
+      _intent: "std.proc.validate",
+      _safety: "pure"
+    }
+    ::IN { $0xINPUT: Ref($0xRAW) }
+    ::EXEC<PYTHON> {
+      data = $0xINPUT
+      valid = all(r["value"] > 0 for r in data["records"])
+      return {"records": data["records"], "is_valid": valid, "count": data["count"]}
+    }
+    ::OUT { $0xVALIDATED: Type<JSON> }
+    ::VALIDATE {
+      ASSERT $0xVALIDATED["count"] > 0 OR HALT
+    }
+  }
+
+  // Valid path: enrich records
+  // Branch guard embedded in EXEC — Aether has no native conditional-edge syntax.
+  // If is_valid is false this node returns {"skipped": true} and downstream store halts.
+  §ACT 0x3C {
+    ::META {
+      _intent: "std.proc.transform",
+      _safety: "pure"
+    }
+    ::IN { $0xSRC: Ref($0xVALIDATED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      if not data["is_valid"]:
+        return {"skipped": True}
+      enriched = [dict(r, score=round(r["value"] * 1.1, 2)) for r in data["records"]]
+      return {"enriched": enriched, "count": len(enriched)}
+    }
+    ::OUT { $0xENRICHED: Type<JSON> }
+  }
+
+  // Valid path: store enriched records
+  §ACT 0x4D {
+    ::META {
+      _intent: "std.io.write",
+      _safety: "fs_write"
+    }
+    ::IN { $0xDATA: Ref($0xENRICHED) }
+    ::EXEC<PYTHON> {
+      data = $0xDATA
+      if data.get("skipped"):
+        return {"stored": 0, "status": "skipped"}
+      return {"stored": data["count"], "status": "ok"}
+    }
+    ::OUT { $0xSTORED: Type<JSON> }
+  }
+
+  // Invalid path: flag and log bad records
+  §ACT 0x5E {
+    ::META {
+      _intent: "std.proc.flag",
+      _safety: "pure"
+    }
+    ::IN { $0xSRC: Ref($0xVALIDATED) }
+    ::EXEC<PYTHON> {
+      data = $0xSRC
+      if data["is_valid"]:
+        return {"logged": 0, "status": "skipped"}
+      invalid = [r for r in data["records"] if r["value"] <= 0]
+      return {"flagged": invalid, "logged": len(invalid), "status": "flagged"}
+    }
+    ::OUT { $0xFLAGGED: Type<JSON> }
+  }
+
+}

@@ -1,0 +1,33 @@
+(* Aether (AE) Formal EBNF Grammar - Volume I *)
+
+program      ::= "§ROOT" hash "{" block* "}"
+block        ::= context | action | request | failure
+context      ::= "::CTX" hash? "{" pair* "}"
+action       ::= "§ACT" hash "{" act_content "}"
+request      ::= "§REQ" hash "{" req_content "}"
+failure      ::= "§FAIL" hash "{" fail_content "}"
+
+act_content  ::= meta_block? in_block? exec_block out_block? val_block?
+meta_block   ::= "::META" "{" pair* "}"
+in_block     ::= "::IN" "{" ref_pair* "}"
+exec_block   ::= [ condition_block ] "::EXEC<" lang ">" "{" code_payload "}"
+out_block    ::= "::OUT" "{" type_pair* "}"
+val_block    ::= "::VALIDATE" "{" assertion* "}"
+condition_block ::= "::CONDITION" "{" expression "}"
+
+pair         ::= key ":" value ","?
+ref_pair     ::= address ":" "Ref(" address ")" ","?
+type_pair    ::= address ":" "Type<" type_name ">" ","?
+assertion    ::= "ASSERT" condition "OR" ( "HALT" | "RETRY" | "WARN" )
+
+hash         ::= "0x" [0-9a-fA-F]+
+address      ::= "$" [0-9a-fA-F]+
+lang         ::= "PYTHON" | "JS" | "RUST" | "SQL" | "SHELL" | "TEXT" | "TEXT_GEN" | "WASM"
+
+key          ::= identifier
+value        ::= string_literal | number | boolean | address | hash
+
+identifier   ::= [a-zA-Z_] [a-zA-Z0-9_]*
+string_literal ::= '"' [^"]* '"'
+code_payload ::= [^}]* (* Raw content until closing brace, respecting nested structures *)
+type_name    ::= "Bool" | "Int" | "Float" | "String" | "JSON" | "Blob" | "Tensor" | "Ref" | "Map" | "List" | "JSON_String" | "JSON_Object" | "Table"

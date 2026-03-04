@@ -1,0 +1,87 @@
+§ROOT 0xFF_CLASSIFY {
+
+  §ACT 0x1A {
+    ::META {
+      _intent: "std.io.read",
+      _safety: "fs_read"
+    }
+    ::EXEC<PYTHON> {
+      return {
+        "content": "Q3 revenue increased 23% YoY driven by enterprise sales expansion.",
+        "source": "report_q3.txt",
+        "length": 68
+      }
+    }
+    ::OUT { $0xRAW: Type<JSON> }
+  }
+
+  // LLM classification node — net_egress because it calls external API.
+  // Aether's safety model blocks this node if the environment permits only L2 (state_mod) or below.
+  §ACT 0x2B {
+    ::META {
+      _intent: "std.ml.classify",
+      _safety: "net_egress"
+    }
+    ::IN { $0xTEXT: Ref($0xRAW) }
+    ::EXEC<PYTHON> {
+      import os
+      import anthropic
+      client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+      text = $0xTEXT["content"]
+      resp = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=64,
+        messages=[{
+          "role": "user",
+          "content": f"Classify as FINANCIAL, TECHNICAL, or OPERATIONAL. Text: {text}\nReply with only the category name."
+        }]
+      )
+      return {"category": resp.content[0].text.strip(), "confidence": 1.0}
+    }
+    ::OUT { $0xCLASS: Type<JSON> }
+    ::VALIDATE {
+      ASSERT $0xCLASS["category"] in ["FINANCIAL", "TECHNICAL", "OPERATIONAL"] OR RETRY(2)
+    }
+  }
+
+  §ACT 0x3C {
+    ::META {
+      _intent: "std.text.extract",
+      _safety: "pure"
+    }
+    ::IN {
+      $0xDATA: Ref($0xRAW),
+      $0xTAG:  Ref($0xCLASS)
+    }
+    ::EXEC<PYTHON> {
+      data = $0xDATA
+      tag  = $0xTAG
+      words   = data["content"].split()
+      numbers = [w for w in words if any(c.isdigit() for c in w)]
+      return {
+        "category":   tag["category"],
+        "entities":   numbers,
+        "word_count": len(words),
+        "char_count": data["length"]
+      }
+    }
+    ::OUT { $0xEXTRACTED: Type<JSON> }
+  }
+
+  §ACT 0x4D {
+    ::META {
+      _intent: "std.text.format",
+      _safety: "pure"
+    }
+    ::IN { $0xIN: Ref($0xEXTRACTED) }
+    ::EXEC<PYTHON> {
+      d = $0xIN
+      return {
+        "output": f"[{d['category']}] {d['word_count']} words, entities: {d['entities']}",
+        "status": "ok"
+      }
+    }
+    ::OUT { $0xOUTPUT: Type<JSON> }
+  }
+
+}

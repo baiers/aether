@@ -1,0 +1,24 @@
+/target
+
+# Build artifacts and temp files
+*.o
+*.rcgu.o
+test_rust.rs
+build.log
+log.txt
+
+# Execution logs (generated at runtime)
+output.ae.json
+
+# Error logs
+error.log
+error_full.log
+error_head.txt
+errors.json
+compile_errors.txt
+
+# Windows installers
+rustup-init.exe
+
+# Claude Code
+.claude/

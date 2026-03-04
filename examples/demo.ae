@@ -1,0 +1,70 @@
+§ROOT 0xFF_MAIN {
+
+  ::CTX {
+    $0xGLOB_URL: "https://api.example.com"
+  }
+
+  §ACT 0x1A {
+    ::META {
+      _intent: "Generate a list of sample users",
+      _safety: "pure"
+    }
+
+    ::EXEC<PYTHON> {
+      return [
+        {"id": 1, "name": "Alice", "age": 30},
+        {"id": 2, "name": "Bob", "age": 17},
+        {"id": 3, "name": "Charlie", "age": 25}
+      ]
+    }
+
+    ::OUT {
+      $0xUSERS: Type<JSON>
+    }
+  }
+
+  §ACT 0x2B {
+    ::META {
+      _intent: "Filter users to adults only",
+      _safety: "pure"
+    }
+
+    ::IN {
+      $0xSRC: Ref($0xUSERS)
+    }
+
+    ::EXEC<PYTHON> {
+      users = $0xSRC
+      adults = [u for u in users if u["age"] >= 18]
+      return {"adults": adults, "count": len(adults)}
+    }
+
+    ::OUT {
+      $0xADULTS: Type<JSON>
+    }
+  }
+
+  §ACT 0x3C {
+    ::META {
+      _intent: "Generate summary report",
+      _safety: "pure"
+    }
+
+    ::IN {
+      $0xDATA: Ref($0xADULTS)
+    }
+
+    ::EXEC<PYTHON> {
+      data = $0xDATA
+      names = [u["name"] for u in data["adults"]]
+      return {
+        "report": f"Found {data['count']} adults: {', '.join(names)}",
+        "status": "ok"
+      }
+    }
+
+    ::OUT {
+      $0xREPORT: Type<JSON>
+    }
+  }
+}

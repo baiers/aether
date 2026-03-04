@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+            ext: .exe
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            ext: ""
+          - target: x86_64-apple-darwin
+            os: macos-13
+            archive: tar.gz
+            ext: ""
+          - target: aarch64-apple-darwin
+            os: macos-14
+            archive: tar.gz
+            ext: ""
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binaries
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package binaries (Unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/aether${{ matrix.ext }} dist/
+          cp target/${{ matrix.target }}/release/aether-mcp${{ matrix.ext }} dist/
+          cp target/${{ matrix.target }}/release/aether-api${{ matrix.ext }} dist/
+          cd dist
+          tar czf ../aether-${{ matrix.target }}.tar.gz *
+          cd ..
+          sha256sum aether-${{ matrix.target }}.tar.gz > aether-${{ matrix.target }}.tar.gz.sha256
+
+      - name: Package binaries (Windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "target/${{ matrix.target }}/release/aether${{ matrix.ext }}" dist/
+          Copy-Item "target/${{ matrix.target }}/release/aether-mcp${{ matrix.ext }}" dist/
+          Copy-Item "target/${{ matrix.target }}/release/aether-api${{ matrix.ext }}" dist/
+          Compress-Archive -Path dist/* -DestinationPath "aether-${{ matrix.target }}.zip"
+          (Get-FileHash "aether-${{ matrix.target }}.zip" -Algorithm SHA256).Hash.ToLower() + "  aether-${{ matrix.target }}.zip" | Out-File "aether-${{ matrix.target }}.zip.sha256" -Encoding utf8
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aether-${{ matrix.target }}
+          path: aether-${{ matrix.target }}.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            aether-*.tar.gz
+            aether-*.zip
+            aether-*.sha256
+          generate_release_notes: true
+
+  pip-package:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build wheel
+
+      - name: Build platform wheels
+        run: python python/scripts/build_wheels.py artifacts/
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist/

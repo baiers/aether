@@ -1,0 +1,229 @@
+{
+  "version": "0.2.0",
+  "entries": [
+    {
+      "id": "std.io.net_get",
+      "description": "Standard HTTP GET request.",
+      "safety": "l1",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.io.net_post",
+      "description": "HTTP POST with payload.",
+      "safety": "l3",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.io.fs_read",
+      "description": "Read file contents from disk.",
+      "safety": "l1",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.io.fs_write",
+      "description": "Persistent file creation or overwrite.",
+      "safety": "l2",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.io.db_query",
+      "description": "Execute SQL SELECT statement.",
+      "safety": "l1",
+      "recommended_lang": "SQL",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.io.db_write",
+      "description": "Execute SQL INSERT / UPDATE / DELETE.",
+      "safety": "l2",
+      "recommended_lang": "SQL",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.proc.transform",
+      "description": "Data mapping, cleaning, or reshaping.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.list.filter",
+      "description": "Remove items from a list based on a predicate.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.list.map",
+      "description": "Apply a function to each element in a list.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.list.reduce",
+      "description": "Fold a list into a single value.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.tab.pivot",
+      "description": "Reshape a table structure.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.tab.aggregate",
+      "description": "Group-by and aggregate table rows.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.sort",
+      "description": "Sort a list or table by one or more keys.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.proc.join",
+      "description": "Join two datasets on a common key.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.proc"
+    },
+    {
+      "id": "std.math.stats",
+      "description": "Compute mean, std, variance, percentiles.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.math"
+    },
+    {
+      "id": "std.math.arithmetic",
+      "description": "Basic arithmetic operations.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.math"
+    },
+    {
+      "id": "std.ml.infer.text",
+      "description": "Request text generation from an LLM.",
+      "safety": "l3",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
+      "id": "std.ml.infer.vision",
+      "description": "Request image understanding from a vision model.",
+      "safety": "l3",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
+      "id": "std.ml.vec.embed",
+      "description": "Generate vector embeddings for a text input.",
+      "safety": "l3",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
+      "id": "std.ml.vec.search",
+      "description": "Cosine similarity search in a vector space.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
+      "id": "std.ml.agent.handshake",
+      "description": "Initiate an Aether §REQ to a peer agent.",
+      "safety": "l3",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
+      "id": "std.sec.hash.sha2",
+      "description": "Secure SHA-256 hashing of a value.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.sec"
+    },
+    {
+      "id": "std.sec.mask.pii",
+      "description": "Anonymize or redact sensitive strings (PII).",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.sec"
+    },
+    {
+      "id": "std.sec.encrypt.aes",
+      "description": "AES-256 encrypt a value.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.sec"
+    },
+    {
+      "id": "std.sec.decrypt.aes",
+      "description": "AES-256 decrypt a value.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.sec"
+    },
+    {
+      "id": "std.text.parse.json",
+      "description": "Parse a JSON string into a structured object.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.text"
+    },
+    {
+      "id": "std.text.parse.csv",
+      "description": "Parse CSV text into a list of records.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.text"
+    },
+    {
+      "id": "std.text.format",
+      "description": "Format or template a string from inputs.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.text"
+    },
+    {
+      "id": "std.text.summarize",
+      "description": "Summarize a long text using an LLM.",
+      "safety": "l3",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.text"
+    },
+    {
+      "id": "std.sys.shell",
+      "description": "Execute a shell command on the host.",
+      "safety": "l4",
+      "recommended_lang": "SHELL",
+      "namespace": "std.sys"
+    },
+    {
+      "id": "std.sys.pkg.install",
+      "description": "Install a system or language package.",
+      "safety": "l4",
+      "recommended_lang": "SHELL",
+      "namespace": "std.sys"
+    },
+    {
+      "id": "std.sys.env.read",
+      "description": "Read an environment variable.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.sys"
+    }
+  ]
+}

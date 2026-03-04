@@ -1,0 +1,132 @@
+// Aether (AE) Pest Grammar v0.2
+// Full expression support for VALIDATE assertions, dependency-aware parsing
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
+
+program = { SOI ~ root_block* ~ EOI }
+
+root_block = { "§ROOT" ~ hash ~ "{" ~ block* ~ "}" }
+
+block = { context_block | action_node | request_block | failure_block | parallel_block }
+
+context_block = { "::CTX" ~ hash? ~ "{" ~ ctx_pair* ~ "}" }
+
+ctx_pair = { (address | key) ~ ":" ~ value ~ ","? }
+
+action_node = { "§ACT" ~ hash ~ "{" ~ act_content ~ "}" }
+
+request_block = { "§REQ" ~ hash ~ "{" ~ req_content ~ "}" }
+
+failure_block = { "§FAIL" ~ hash ~ "{" ~ pair* ~ "}" }
+
+// Parallel execution group — nodes inside run concurrently
+parallel_block = { "§PAR" ~ hash? ~ "{" ~ action_node+ ~ "}" }
+
+act_content = { meta_block? ~ in_block? ~ condition_block? ~ exec_block ~ out_block? ~ val_block? }
+
+req_content = { sender_field? ~ target_field? ~ context_field? ~ instructions_field? ~ pair* }
+
+sender_field      = { "::SENDER" ~ ":" ~ string_literal }
+target_field      = { "::TARGET" ~ ":" ~ string_literal }
+context_field     = { "::CONTEXT" ~ "{" ~ pair* ~ "}" }
+instructions_field = { "::INSTRUCTIONS" ~ "{" ~ string_literal ~ "}" }
+
+meta_block = { "::META" ~ "{" ~ pair* ~ "}" }
+
+in_block = { "::IN" ~ "{" ~ (ref_pair | value_pair)* ~ "}" }
+
+condition_block = { "::CONDITION" ~ "{" ~ expression ~ "}" }
+
+exec_block = { "::EXEC<" ~ lang ~ ">" ~ "{" ~ code_payload ~ "}" }
+
+out_block = { "::OUT" ~ "{" ~ type_pair* ~ "}" }
+
+val_block = { "::VALIDATE" ~ "{" ~ assertion* ~ "}" }
+
+// --- Key-Value Pairs ---
+
+pair = { key ~ ":" ~ value ~ ","? }
+
+value_pair = { address ~ ":" ~ value ~ ","? }
+
+ref_pair = { address ~ alias? ~ ":" ~ "Ref(" ~ address ~ ")" ~ ","? }
+
+type_pair = { address ~ ":" ~ "Type<" ~ type_name ~ ">" ~ ","? }
+
+// Ghost alias layer for human readability
+alias = { "[" ~ identifier ~ "]" }
+
+// --- Assertions ---
+
+assertion = { "ASSERT" ~ expression ~ "OR" ~ halt_action }
+
+halt_action = { "HALT" | "RETRY" ~ ("(" ~ number ~ ")")? | "WARN" }
+
+// --- Expression Grammar (for VALIDATE and CONDITION blocks) ---
+
+expression = { or_expr }
+
+or_expr  = { and_expr ~ ("||" ~ and_expr)* }
+and_expr = { not_expr ~ ("&&" ~ not_expr)* }
+not_expr = { "!" ~ not_expr | comparison }
+
+comparison = { additive ~ (comp_op ~ additive)? }
+
+comp_op = { "==" | "!=" | ">=" | "<=" | ">" | "<" }
+
+additive       = { multiplicative ~ (add_op ~ multiplicative)* }
+add_op         = { "+" | "-" }
+multiplicative = { unary ~ (mul_op ~ unary)* }
+mul_op         = { "*" | "/" | "%" }
+
+unary = { "-" ~ unary | accessor }
+
+// Field access and indexing: $0xRAW["status"], $0x1.field, etc
+accessor = { atom ~ (index_access | dot_access)* }
+
+index_access = { "[" ~ expression ~ "]" }
+dot_access   = { "." ~ identifier }
+
+atom = {
+    "(" ~ expression ~ ")"
+    | func_call
+    | string_literal
+    | number
+    | boolean
+    | "null"
+    | address
+    | identifier
+}
+
+func_call = { identifier ~ "(" ~ (expression ~ ("," ~ expression)*)? ~ ")" }
+
+// --- Terminals ---
+
+key = @{ ("_" | ASCII_ALPHA) ~ (ASCII_ALPHANUMERIC | "_" | ".")* }
+
+value = { string_literal | number | boolean | address | hash | "null" }
+
+lang = { "PYTHON" | "JS" | "RUST" | "SQL" | "SHELL" | "TEXT" | "TEXT_GEN" | "WASM" }
+
+hash = @{ "0x" ~ (ASCII_HEX_DIGIT | ASCII_ALPHA | "_")+ }
+
+address = @{ "$" ~ "0x"? ~ (ASCII_HEX_DIGIT | ASCII_ALPHA | "_")+ }
+
+type_name = {
+    "Bool" | "Int" | "Float" | "String"
+    | "JSON_String" | "JSON_Object" | "JSON"
+    | "Blob" | "Tensor" | "Ref" | "Map" | "List" | "Table"
+}
+
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+string_literal = @{ "\"" ~ (escape_char | (!"\"" ~ !"\\" ~ ANY))* ~ "\"" }
+escape_char    = @{ "\\" ~ ("\"" | "\\" | "n" | "r" | "t") }
+
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+
+boolean = { "true" | "false" }
+
+code_payload = @{ (expr_braces | (!"}" ~ ANY))* }
+expr_braces  = { "{" ~ code_payload ~ "}" }
