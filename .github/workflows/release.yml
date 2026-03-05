@@ -111,7 +111,7 @@ jobs:
         run: pip install build wheel
 
       - name: Build platform wheels
-        run: python python/scripts/build_wheels.py artifacts/
+        run: cp README.md python/README.md && python python/scripts/build_wheels.py artifacts/
 
       - name: Upload wheels to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
