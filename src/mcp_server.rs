@@ -1,6 +1,6 @@
-/// Aether MCP Server — Model Context Protocol interface
-/// Exposes the Aether kernel as tools for any MCP-compatible LLM client.
-/// Protocol: JSON-RPC 2.0 over stdio
+//! Aether MCP Server — Model Context Protocol interface
+//! Exposes the Aether kernel as tools for any MCP-compatible LLM client.
+//! Protocol: JSON-RPC 2.0 over stdio
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -20,6 +20,7 @@ use aether_kernel::audit;
 
 #[derive(Deserialize)]
 struct JsonRpcRequest {
+    #[allow(dead_code)]
     jsonrpc: String,
     id: Option<Value>,
     method: String,

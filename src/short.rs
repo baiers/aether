@@ -1,30 +1,30 @@
-/// Aether-Short (AS) Preprocessor — Phase 2c
-///
-/// Converts compact .as pipeline notation into full Aether (.ae) syntax,
-/// then hands off to the standard parser. Enables "intent is compilation."
-///
-/// ## Format (.as file)
-///
-/// ```text
-/// // comments
-/// @pipeline 0xFF_NAME
-///
-///   ::CTX {
-///     $0xAPI_URL: "https://api.example.com"
-///   }
-///
-///   $0xUSERS: JSON = @std.io.net_get($0xAPI_URL) {
-///     import urllib.request, json
-///     return json.loads(urllib.request.urlopen($0xAPI_URL).read())
-///   }
-///
-///   $0xACTIVE: JSON = @std.proc.list.filter($0xUSERS) {
-///     users = $0xUSERS
-///     return [u for u in users if u.get("active", False)]
-///   } | ASSERT $0xACTIVE["count"] >= 0 OR HALT
-///
-/// @end
-/// ```
+//! Aether-Short (AS) Preprocessor — Phase 2c
+//!
+//! Converts compact .as pipeline notation into full Aether (.ae) syntax,
+//! then hands off to the standard parser. Enables "intent is compilation."
+//!
+//! ## Format (.as file)
+//!
+//! ```text
+//! // comments
+//! @pipeline 0xFF_NAME
+//!
+//!   ::CTX {
+//!     $0xAPI_URL: "https://api.example.com"
+//!   }
+//!
+//!   $0xUSERS: JSON = @std.io.net_get($0xAPI_URL) {
+//!     import urllib.request, json
+//!     return json.loads(urllib.request.urlopen($0xAPI_URL).read())
+//!   }
+//!
+//!   $0xACTIVE: JSON = @std.proc.list.filter($0xUSERS) {
+//!     users = $0xUSERS
+//!     return [u for u in users if u.get("active", False)]
+//!   } | ASSERT $0xACTIVE["count"] >= 0 OR HALT
+//!
+//! @end
+//! ```
 
 use crate::registry::AslRegistry;
 
@@ -47,8 +47,8 @@ pub fn expand(source: &str) -> Result<String, String> {
             continue;
         }
 
-        if trimmed.starts_with("@pipeline") {
-            let id_part = trimmed["@pipeline".len()..].trim();
+        if let Some(rest) = trimmed.strip_prefix("@pipeline") {
+            let id_part = rest.trim();
             let pipeline_id = if id_part.is_empty() { "0xFF_MAIN" } else { id_part };
 
             output.push_str(&format!("\u{00a7}ROOT {} {{\n\n", pipeline_id));
@@ -145,7 +145,7 @@ fn expand_node(
     let rhs_body = &rhs[1..];
 
     let intent_end = rhs_body
-        .find(|c: char| c == '(' || c == ' ' || c == '\t' || c == '{')
+        .find(['(', ' ', '\t', '{'])
         .unwrap_or(rhs_body.len());
     let intent = &rhs_body[..intent_end];
     let after_intent = rhs_body[intent_end..].trim_start();
@@ -251,12 +251,11 @@ fn expand_node(
 // Helpers
 // =============================================================================
 
-fn parse_lang_hint<'a>(s: &'a str) -> (Option<&'a str>, &'a str) {
+fn parse_lang_hint(s: &str) -> (Option<&str>, &str) {
     let s = s.trim_start();
     for lang in &["python", "js", "shell"] {
-        if s.starts_with(lang) {
-            let rest = s[lang.len()..].trim_start();
-            return (Some(lang), rest);
+        if let Some(rest) = s.strip_prefix(lang) {
+            return (Some(lang), rest.trim_start());
         }
     }
     (None, s)
@@ -297,11 +296,7 @@ fn collect_code_block(lines: &[&str]) -> Result<(String, Option<String>, usize),
                 code_lines.push(before.to_string());
             }
             let after = trimmed[pos + 1..].trim();
-            let validate_clause = if after.starts_with('|') {
-                Some(after[1..].trim().to_string())
-            } else {
-                None
-            };
+            let validate_clause = after.strip_prefix('|').map(|stripped| stripped.trim().to_string());
             return Ok((code_lines.join("\n"), validate_clause, consumed));
         }
 

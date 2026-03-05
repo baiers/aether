@@ -1,6 +1,6 @@
-/// Aether Standard Library (ASL) Registry
-/// Machine-readable registry of canonical intents, their required safety levels,
-/// and recommended guest languages. Embedded at compile time.
+//! Aether Standard Library (ASL) Registry
+//! Machine-readable registry of canonical intents, their required safety levels,
+//! and recommended guest languages. Embedded at compile time.
 
 use serde::{Deserialize, Serialize};
 

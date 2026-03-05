@@ -75,6 +75,12 @@ pub struct StateLedger {
     data: HashMap<String, serde_json::Value>,
 }
 
+impl Default for StateLedger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StateLedger {
     pub fn new() -> Self {
         Self { data: HashMap::new() }
@@ -184,7 +190,7 @@ else:
     );
 
     let output = Command::new("python")
-        .args(&["-c", &wrapper])
+        .args(["-c", &wrapper])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -242,7 +248,7 @@ if (_ae_result !== undefined && _ae_result !== null) {{
     );
 
     let output = Command::new(runtime)
-        .args(&["-e", &wrapper])
+        .args(["-e", &wrapper])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -265,7 +271,7 @@ if (_ae_result !== undefined && _ae_result !== null) {{
 
 async fn run_shell(code: &str, _inputs: &serde_json::Value) -> Result<serde_json::Value, String> {
     let output = Command::new("bash")
-        .args(&["-c", code])
+        .args(["-c", code])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -1073,7 +1079,7 @@ async fn execute_single_node(
             if let Some(assertions) = &node.validation {
                 for assertion in assertions {
                     let result = eval_expr(&assertion.condition, ledger);
-                    let passed = result.as_ref().map(|v| is_truthy(v)).unwrap_or(false);
+                    let passed = result.as_ref().map(is_truthy).unwrap_or(false);
                     let action_str = match &assertion.on_fail {
                         HaltAction::Halt => "HALT",
                         HaltAction::Retry(_) => "RETRY",
@@ -1105,7 +1111,8 @@ async fn execute_single_node(
                 // Restore ledger to pre-write state so retry starts clean
                 *ledger = ledger_snapshot;
 
-                let status = if retry_needed { "VALIDATION_FAILED" } else { "VALIDATION_FAILED" };
+                let _ = retry_needed; // status is VALIDATION_FAILED regardless
+                let status = "VALIDATION_FAILED";
                 Err(NodeTrace {
                     node: node.id.clone(),
                     intent,

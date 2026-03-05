@@ -90,6 +90,7 @@ pub enum SafetyLevel {
 }
 
 impl SafetyLevel {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "pure" | "l0" => Some(Self::L0Pure),
@@ -156,6 +157,7 @@ pub enum AetherType {
 }
 
 impl AetherType {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "Bool" => Some(Self::Bool),
@@ -239,6 +241,7 @@ pub enum GuestLang {
 }
 
 impl GuestLang {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "PYTHON" => Some(Self::Python),

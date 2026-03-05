@@ -1,6 +1,6 @@
-/// Aether REST API Server
-/// Exposes the Aether kernel over HTTP for framework-agnostic integration.
-/// Works with LangChain, AutoGen, n8n, or any HTTP client.
+//! Aether REST API Server
+//! Exposes the Aether kernel over HTTP for framework-agnostic integration.
+//! Works with LangChain, AutoGen, n8n, or any HTTP client.
 
 use axum::{
     extract::State,
