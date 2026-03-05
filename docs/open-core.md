@@ -40,9 +40,9 @@ For individuals and teams who want managed execution without running their own i
 | **Persistent execution history** | Full NodeTrace stored per-execution, browse and compare runs |
 | **Cloud Lens dashboard** | Web-based DAG visualizer for all cloud executions |
 | **Extended ASL registry** | 200+ canonical intents including enterprise integrations (Snowflake, Salesforce, SAP) |
-| **Priority model** | Claude Sonnet for healing and translation (vs Haiku in community self-hosted mode) |
+| **LLM model** | Claude Sonnet 4.6 via Aether's managed subscription — no API key needed |
 
-**Note:** Self-healing and English Toggle are available for free in Community tier when you supply your own `ANTHROPIC_API_KEY`. Pro removes that requirement and upgrades the model.
+**Note:** Self-healing and English Toggle are available for free in Community tier when you supply your own `ANTHROPIC_API_KEY`. Both tiers use Claude Sonnet 4.6 — Pro simply removes the requirement to manage your own key.
 
 ---
 
@@ -53,6 +53,7 @@ For organizations requiring on-premise deployment, compliance, and team governan
 | Feature | Details |
 |---------|---------|
 | **On-premise deployment** | Docker/Helm chart for private VPC, bring your own Anthropic key |
+| **LLM model choice** | Claude Sonnet 4.6 (default) or Claude Opus 4.6 for maximum reasoning quality |
 | **SSO / SAML** | Auth via Okta, Azure AD for the API server and dashboard |
 | **RBAC safety gates** | Org policy overrides: "no L4 nodes without two-person approval" |
 | **Audit log export** | NodeTrace streamed to Splunk, Datadog, S3 (SIEM integration) |
@@ -79,5 +80,5 @@ The following will always remain free and open source, regardless of tier:
 ## Contact
 
 - Community: [github.com/baiers/aether/issues](https://github.com/baiers/aether/issues)
-- Pro/Enterprise: [aether-lang.dev/pro](https://aether-lang.dev/pro)
-- Security: security@aether-lang.dev
+- Pro/Enterprise: [github.com/baiers/aether/discussions](https://github.com/baiers/aether/discussions)
+- Security: please open a private vulnerability report at [github.com/baiers/aether/security](https://github.com/baiers/aether/security)

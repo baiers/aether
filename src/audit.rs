@@ -24,7 +24,7 @@ pub async fn audit(log_json: &str) -> Result<String, Box<dyn std::error::Error +
         .header("anthropic-version", "2023-06-01")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
-            "model": "claude-haiku-4-5-20251001",
+            "model": "claude-sonnet-4-6",
             "max_tokens": 4096,
             "system": AUDIT_PROMPT,
             "messages": [{ "role": "user", "content": log_json }]

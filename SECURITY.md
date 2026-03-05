@@ -11,7 +11,9 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Send a report to **security@aether-lang.dev** with:
+Use GitHub's private vulnerability reporting: [github.com/baiers/aether/security/advisories/new](https://github.com/baiers/aether/security/advisories/new)
+
+Include:
 
 - A description of the vulnerability and its potential impact
 - Steps to reproduce (minimal `.ae` / `.as` program if applicable)

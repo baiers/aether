@@ -22,7 +22,7 @@ pub async fn translate(
         .header("anthropic-version", "2023-06-01")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
-            "model": "claude-haiku-4-5-20251001",
+            "model": "claude-sonnet-4-6",
             "max_tokens": 4096,
             "system": SYSTEM_PROMPT,
             "messages": [{ "role": "user", "content": description }]
