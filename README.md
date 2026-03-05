@@ -83,6 +83,32 @@ See [`docs/benchmark.md`](docs/benchmark.md) for the full token-cost comparison.
 - **REST API** — `aether-api` runs on port 3737 for integration with LangChain, AutoGen, n8n, or any HTTP client.
 - **Aether Lens** — a standalone DAG visualizer (`lens/index.html`) that renders any `output.ae.json` execution log.
 
+## Aether Lens
+
+Every execution writes an `output.ae.json` audit log. Open `lens/index.html` in any browser to visualize it — no build step, no npm, no server required.
+
+![Aether Lens — DAG execution visualizer](docs/lens-screenshot.png)
+
+Each node card shows its **intent**, **safety level**, **execution time**, and **status** — color-coded at a glance:
+
+| Color | Meaning |
+|---|---|
+| Green | Completed successfully |
+| Amber (`HEALED`) | Failed, repaired by LLM, re-ran successfully |
+| Red (`BLOCKED`) | Skipped — upstream dependency failed or safety gate rejected |
+| Orange | Failed with no recovery |
+
+Click any node to open the detail panel: full JSON output, validation results, and the heal log if self-healing was attempted. The ledger bar at the bottom shows every live state address and its current value.
+
+```bash
+# Serve locally to auto-load output.ae.json
+cd lens && python -m http.server 8080
+# → open http://localhost:8080
+
+# Or just open the file directly and drag-and-drop any output.ae.json
+open lens/index.html
+```
+
 ## Installation
 
 ```bash
