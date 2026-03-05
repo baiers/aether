@@ -32,8 +32,12 @@ pub struct AslRegistry {
 pub struct RegistryCheck {
     /// The matched ASL entry ID, if found
     pub matched_id: Option<String>,
-    /// Any warning (safety mismatch, unknown intent)
+    /// Any warning (safety mismatch)
     pub warning: Option<String>,
+    /// Hard error — unknown `std.*` intent or strict mode violation
+    pub is_error: bool,
+    /// Error message when is_error is true
+    pub error_message: Option<String>,
 }
 
 // =============================================================================
@@ -62,13 +66,16 @@ impl AslRegistry {
     }
 
     /// Validate an intent against the registry.
-    /// Returns a RegistryCheck with:
-    ///   - matched_id: Some(id) if found, None if unknown
-    ///   - warning: Some(msg) if safety mismatch or intent unknown
     ///
-    /// Unknown intents produce a warning but are NOT blocked — custom intents
-    /// are valid and encouraged. Only safety mismatches against known entries warn.
-    pub fn check(&self, intent: &str, declared_safety: &str) -> RegistryCheck {
+    /// - `strict`: when true, unknown intents in ANY namespace are hard errors.
+    ///   When false (default), only unknown `std.*` intents are errors; custom
+    ///   namespaces are silently accepted.
+    ///
+    /// Returns a RegistryCheck with:
+    ///   - matched_id: Some(id) if found
+    ///   - warning: Some(msg) on safety mismatch
+    ///   - is_error / error_message: set for unknown std.* or strict violations
+    pub fn check(&self, intent: &str, declared_safety: &str, strict: bool) -> RegistryCheck {
         match self.lookup(intent) {
             Some(entry) => {
                 let safety_matches = entry.safety.to_lowercase() == declared_safety.to_lowercase();
@@ -87,23 +94,45 @@ impl AslRegistry {
                 RegistryCheck {
                     matched_id: Some(entry.id.clone()),
                     warning,
+                    is_error: false,
+                    error_message: None,
                 }
             }
             None => {
-                // Not a registered std.* intent — fine for custom intents,
-                // but flag std.* unknowns as potential typos
-                let warning = if intent.starts_with("std.") {
-                    Some(format!(
-                        "ASL: intent '{}' looks like a std namespace entry but is not registered",
-                        intent
-                    ))
-                } else {
-                    None // Custom intents are silently accepted
-                };
+                let is_std = intent.starts_with("std.");
 
-                RegistryCheck {
-                    matched_id: None,
-                    warning,
+                if is_std {
+                    // Unknown std.* intents are always hard errors — the std
+                    // namespace is Aether-owned; an unknown entry is a typo or
+                    // LLM hallucination that must not execute.
+                    RegistryCheck {
+                        matched_id: None,
+                        warning: None,
+                        is_error: true,
+                        error_message: Some(format!(
+                            "Unknown std.* intent '{}'. Check the ASL registry or use a custom namespace.",
+                            intent
+                        )),
+                    }
+                } else if strict {
+                    // Strict mode: reject any unregistered intent
+                    RegistryCheck {
+                        matched_id: None,
+                        warning: None,
+                        is_error: true,
+                        error_message: Some(format!(
+                            "Unregistered intent '{}' rejected (--strict-registry mode).",
+                            intent
+                        )),
+                    }
+                } else {
+                    // Custom namespaces silently accepted
+                    RegistryCheck {
+                        matched_id: None,
+                        warning: None,
+                        is_error: false,
+                        error_message: None,
+                    }
                 }
             }
         }

@@ -199,6 +199,11 @@ async fn handle_tool_call(
             let result =
                 serde_json::to_value(&log).map_err(|e| format!("Serialization error: {}", e))?;
 
+            // Write output.ae.json so Aether Lens can auto-load it
+            if let Ok(json_str) = serde_json::to_string_pretty(&log) {
+                let _ = std::fs::write("output.ae.json", json_str);
+            }
+
             // Store for later inspection
             let mut s = state.lock().await;
             s.execution_logs.insert(exec_id, log);

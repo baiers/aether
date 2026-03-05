@@ -2,6 +2,20 @@
   "version": "0.2.0",
   "entries": [
     {
+      "id": "std.io.read",
+      "description": "Generic data read or ingest from any source.",
+      "safety": "l1",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.io"
+    },
+    {
+      "id": "std.io.write",
+      "description": "Generic data write or output to any sink.",
+      "safety": "l2",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.io"
+    },
+    {
       "id": "std.io.net_get",
       "description": "Standard HTTP GET request.",
       "safety": "l1",
@@ -114,6 +128,20 @@
       "namespace": "std.math"
     },
     {
+      "id": "std.ml.score",
+      "description": "Score or evaluate data against a quality metric.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
+      "id": "std.ml.classify",
+      "description": "Classify input into one or more categories.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.ml"
+    },
+    {
       "id": "std.ml.infer.text",
       "description": "Request text generation from an LLM.",
       "safety": "l3",
@@ -175,6 +203,13 @@
       "safety": "l0",
       "recommended_lang": "PYTHON",
       "namespace": "std.sec"
+    },
+    {
+      "id": "std.text.generate",
+      "description": "Generate or compose a text document from structured inputs.",
+      "safety": "l0",
+      "recommended_lang": "PYTHON",
+      "namespace": "std.text"
     },
     {
       "id": "std.text.parse.json",

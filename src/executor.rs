@@ -713,6 +713,8 @@ pub struct ExecutionConfig {
     pub auto_approve_level: SafetyLevel,
     /// Enable ASL registry intent validation (default: true)
     pub use_registry: bool,
+    /// Reject any unregistered intent, including custom namespaces (default: false)
+    pub strict_registry: bool,
 }
 
 impl Default for ExecutionConfig {
@@ -720,6 +722,7 @@ impl Default for ExecutionConfig {
         Self {
             auto_approve_level: SafetyLevel::L2StateMod,
             use_registry: true,
+            strict_registry: false,
         }
     }
 }
@@ -823,6 +826,7 @@ pub async fn execute_with_config(
                     let ledger_snapshot = ledger.clone();
                     let auto_level = config.auto_approve_level.clone();
                     let use_reg = config.use_registry;
+                    let strict_reg = config.strict_registry;
                     let reg_clone = registry.as_ref().map(|_| AslRegistry::load());
 
                     handles.push(tokio::spawn(async move {
@@ -830,6 +834,7 @@ pub async fn execute_with_config(
                         let local_config = ExecutionConfig {
                             auto_approve_level: auto_level,
                             use_registry: use_reg,
+                            strict_registry: strict_reg,
                         };
                         let result = run_node_with_retry(
                             &node_clone,
@@ -1049,22 +1054,48 @@ async fn execute_single_node(
         .unwrap_or("l0");
 
     // ASL Registry check
-    let (asl_match, asl_warnings) = if let Some(reg) = registry {
+    let (asl_match, asl_warnings, registry_error) = if let Some(reg) = registry {
         if !intent.is_empty() {
-            let check = reg.check(&intent, declared_safety_str);
+            let check = reg.check(&intent, declared_safety_str, config.strict_registry);
             let warnings = check.warning.into_iter().collect::<Vec<_>>();
             for w in &warnings {
                 eprintln!("  [ASL] {}", w);
             }
-            (check.matched_id, warnings)
+            if check.is_error {
+                let msg = check
+                    .error_message
+                    .unwrap_or_else(|| format!("ASL error for intent '{}'", intent));
+                eprintln!("  [ASL ERROR] {}", msg);
+                (check.matched_id, warnings, Some(msg))
+            } else {
+                (check.matched_id, warnings, None)
+            }
         } else {
-            (None, vec![])
+            (None, vec![], None)
         }
     } else {
-        (None, vec![])
+        (None, vec![], None)
     };
 
     let start = Utc::now();
+
+    // ASL hard error — block execution before safety gate
+    if let Some(err_msg) = registry_error {
+        let duration = (Utc::now() - start).num_milliseconds() as u64;
+        return Err(NodeTrace {
+            node: node.id.clone(),
+            intent,
+            safety: safety_label,
+            status: "BLOCKED".to_string(),
+            duration_ms: duration,
+            output: serde_json::json!({ "error": err_msg }),
+            validation_results: vec![],
+            depends_on: vec![],
+            asl_match,
+            asl_warnings,
+            heal_log: vec![],
+        });
+    }
 
     // Safety gate
     if let Err(msg) = check_safety(node, &config.auto_approve_level) {

@@ -123,6 +123,7 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
         let config = ExecutionConfig {
             auto_approve_level: safety_level,
             use_registry: !no_registry,
+            strict_registry: false,
         };
 
         let log = execute_with_config(program, config).await?;
@@ -192,6 +193,7 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
     let mut safety_level = SafetyLevel::L2StateMod;
     let mut output_path = String::from("output.ae.json");
     let mut no_registry = false;
+    let mut strict_registry = false;
     let mut expand_only = false;
 
     let mut i = 0;
@@ -212,6 +214,9 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
             }
             "--no-registry" => {
                 no_registry = true;
+            }
+            "--strict-registry" => {
+                strict_registry = true;
             }
             "--expand-only" | "-e" => {
                 expand_only = true;
@@ -275,7 +280,11 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
     println!("  {} root(s), {} action node(s)", root_count, node_count);
     println!("  Safety auto-approve: {}", safety_level.label());
     if !no_registry {
-        println!("  ASL registry: enabled");
+        print!("  ASL registry: enabled");
+        if strict_registry {
+            print!(" (strict)");
+        }
+        println!();
     }
     println!();
     println!("Executing...");
@@ -283,6 +292,7 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
     let config = ExecutionConfig {
         auto_approve_level: safety_level,
         use_registry: !no_registry,
+        strict_registry,
     };
 
     let log = execute_with_config(program, config).await?;
