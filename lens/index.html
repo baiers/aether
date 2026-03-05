@@ -683,6 +683,11 @@ function selectNode(trace, card) {
     ? trace.heal_log.map(h => `<div class="heal-log-item">${esc(h)}</div>`).join('')
     : `<span style="color:var(--muted)">none</span>`;
 
+  // Pre-heal output (compliance audit field)
+  const preHealStr = trace.pre_heal_output
+    ? JSON.stringify(trace.pre_heal_output, null, 2)
+    : null;
+
   // Output
   const outputStr = JSON.stringify(trace.output, null, 2);
 
@@ -727,7 +732,12 @@ function selectNode(trace, card) {
     <div class="detail-section">
       <div class="detail-label">Heal Log</div>
       ${healHtml}
-    </div>`;
+    </div>
+    ${preHealStr ? `
+    <div class="detail-section">
+      <div class="detail-label" style="color:var(--amber)">Pre-Heal Output</div>
+      <pre class="json-view" style="border-left:2px solid var(--amber);padding-left:6px">${esc(preHealStr.length > 500 ? preHealStr.slice(0, 500) + '\n…' : preHealStr)}</pre>
+    </div>` : ''}`;
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────

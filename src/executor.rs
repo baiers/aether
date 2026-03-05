@@ -49,6 +49,10 @@ pub struct NodeTrace {
     /// Log of self-healing attempts (populated on RETRY)
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub heal_log: Vec<String>,
+    /// Output produced by the first (pre-heal) execution attempt, if healing occurred.
+    /// Preserved for audit compliance — the post-heal output is in `output`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pre_heal_output: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -932,6 +936,7 @@ async fn run_node_with_retry(
 
     let mut current_code = node.code.clone();
     let mut heal_log: Vec<String> = Vec::new();
+    let mut pre_heal_output: Option<serde_json::Value> = None;
 
     // Initial execution
     let mut last_result = execute_single_node(node, &current_code, ledger, config, registry).await;
@@ -970,6 +975,11 @@ async fn run_node_with_retry(
 
         let actual_output = failed_trace.output.clone();
 
+        // Capture the original pre-heal output on the first failure only
+        if attempt == 0 {
+            pre_heal_output = Some(actual_output.clone());
+        }
+
         heal_log.push(format!(
             "[attempt {}] validation failed on: {}",
             attempt + 1,
@@ -1002,14 +1012,16 @@ async fn run_node_with_retry(
         }
     }
 
-    // Attach heal_log to whichever trace we're returning
+    // Attach heal_log and pre_heal_output to whichever trace we're returning
     match last_result {
         Ok(mut t) => {
             t.heal_log = heal_log;
+            t.pre_heal_output = pre_heal_output;
             Ok(t)
         }
         Err(mut t) => {
             t.heal_log = heal_log;
+            t.pre_heal_output = pre_heal_output;
             Err(t)
         }
     }
@@ -1094,6 +1106,7 @@ async fn execute_single_node(
             asl_match,
             asl_warnings,
             heal_log: vec![],
+            pre_heal_output: None,
         });
     }
 
@@ -1112,6 +1125,7 @@ async fn execute_single_node(
             asl_match,
             asl_warnings,
             heal_log: vec![],
+            pre_heal_output: None,
         });
     }
 
@@ -1132,6 +1146,7 @@ async fn execute_single_node(
                     asl_match,
                     asl_warnings,
                     heal_log: vec![],
+                    pre_heal_output: None,
                 });
             }
             Err(e) => {
@@ -1148,6 +1163,7 @@ async fn execute_single_node(
                     asl_match,
                     asl_warnings,
                     heal_log: vec![],
+                    pre_heal_output: None,
                 });
             }
             _ => (),
@@ -1212,6 +1228,7 @@ async fn execute_single_node(
                             asl_match,
                             asl_warnings,
                             heal_log: vec![],
+                            pre_heal_output: None,
                         });
                     }
                 }
@@ -1273,6 +1290,7 @@ async fn execute_single_node(
                     asl_match,
                     asl_warnings,
                     heal_log: vec![],
+                    pre_heal_output: None,
                 })
             } else {
                 Ok(NodeTrace {
@@ -1287,6 +1305,7 @@ async fn execute_single_node(
                     asl_match,
                     asl_warnings,
                     heal_log: vec![],
+                    pre_heal_output: None,
                 })
             }
         }
@@ -1302,6 +1321,7 @@ async fn execute_single_node(
             asl_match,
             asl_warnings,
             heal_log: vec![],
+            pre_heal_output: None,
         }),
     }
 }

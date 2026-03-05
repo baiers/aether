@@ -76,7 +76,7 @@ See [`docs/benchmark.md`](docs/benchmark.md) for the full token-cost comparison.
 - **5-tier safety model** — L0 (pure math) → L4 (system root). Nodes above your threshold are blocked before execution.
 - **Typed state ledger** — outputs are written to an immutable address space (`$0xADDR`) with type validation on every write.
 - **Parallel DAG execution** — independent nodes run concurrently via `tokio::spawn`; dependencies resolved with Kahn's topological sort.
-- **ASL registry** — 32 canonical intents (`std.io.*`, `std.proc.*`, `std.ml.*`, `std.sec.*`, etc.) with safety and language defaults.
+- **ASL registry** — 37 canonical intents (`std.io.*`, `std.proc.*`, `std.ml.*`, `std.sec.*`, etc.) with safety and language defaults. Unknown `std.*` intents are hard errors; custom namespaces (`myorg.etl.*`) are accepted. Custom namespace registries with org-defined safety rules are on the roadmap (`--registry myorg.json`).
 - **Self-healing RETRY** — `ASSERT expr OR RETRY(3)` sends failing code + assertion to Claude for repair. Requires your own `ANTHROPIC_API_KEY`.
 - **English Toggle** — `aether gen "description"` turns plain English into a `.ae` program via Claude. Requires your own `ANTHROPIC_API_KEY`.
 - **MCP server** — `aether-mcp` exposes validate/execute/inspect as tools for Claude Code and other MCP-compatible clients.
