@@ -13,9 +13,7 @@ const AUDIT_PROMPT: &str = include_str!("../sdk/AUDIT_PROMPT.md");
 /// `log_json` — the full contents of an `output.ae.json` file as a string.
 /// Returns a structured markdown audit report.
 /// Requires `ANTHROPIC_API_KEY` environment variable.
-pub async fn audit(
-    log_json: &str,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn audit(log_json: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let api_key = std::env::var("ANTHROPIC_API_KEY")
         .map_err(|_| "ANTHROPIC_API_KEY not set — audit requires Claude API access")?;
 

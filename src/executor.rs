@@ -1,11 +1,11 @@
 use crate::ast::*;
 use crate::registry::AslRegistry;
-use serde::{Deserialize, Serialize};
 use chrono::Utc;
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Stdio;
 use tokio::process::Command;
+use uuid::Uuid;
 
 // =============================================================================
 // Execution Log Types
@@ -83,11 +83,18 @@ impl Default for StateLedger {
 
 impl StateLedger {
     pub fn new() -> Self {
-        Self { data: HashMap::new() }
+        Self {
+            data: HashMap::new(),
+        }
     }
 
     /// Write a value to the ledger, optionally validating against a declared type
-    pub fn write(&mut self, address: &str, value: serde_json::Value, declared_type: Option<&AetherType>) -> Result<(), String> {
+    pub fn write(
+        &mut self,
+        address: &str,
+        value: serde_json::Value,
+        declared_type: Option<&AetherType>,
+    ) -> Result<(), String> {
         if let Some(atype) = declared_type {
             if !atype.validate(&value) {
                 return Err(format!(
@@ -114,7 +121,9 @@ impl StateLedger {
 // =============================================================================
 
 fn check_safety(node: &ActionNode, auto_approve_level: &SafetyLevel) -> Result<(), String> {
-    let level = node.meta.as_ref()
+    let level = node
+        .meta
+        .as_ref()
         .and_then(|m| m.safety.as_ref())
         .cloned()
         .unwrap_or(SafetyLevel::L0Pure);
@@ -122,7 +131,9 @@ fn check_safety(node: &ActionNode, auto_approve_level: &SafetyLevel) -> Result<(
     if level > *auto_approve_level {
         return Err(format!(
             "Node {} requires {} but auto-approve is set to {}. Execution blocked.",
-            node.id, level.label(), auto_approve_level.label()
+            node.id,
+            level.label(),
+            auto_approve_level.label()
         ));
     }
     Ok(())
@@ -149,7 +160,8 @@ async fn run_python(code: &str, inputs: &serde_json::Value) -> Result<serde_json
 
     let vars_block = python_vars.join("\n");
 
-    let base_indent = processed_code.lines()
+    let base_indent = processed_code
+        .lines()
         .find(|l| !l.trim().is_empty())
         .map(|l| l.len() - l.trim_start().len())
         .unwrap_or(0);
@@ -185,8 +197,7 @@ if _ae_result is not None:
 else:
     print("null")
 "#,
-        vars_block,
-        top_level_code,
+        vars_block, top_level_code,
     );
 
     let output = Command::new("python")
@@ -206,8 +217,12 @@ else:
     if stdout.is_empty() || stdout == "null" {
         Ok(serde_json::Value::Null)
     } else {
-        serde_json::from_str(&stdout)
-            .map_err(|e| format!("Python output is not valid JSON: {} (output was: {})", e, stdout))
+        serde_json::from_str(&stdout).map_err(|e| {
+            format!(
+                "Python output is not valid JSON: {} (output was: {})",
+                e, stdout
+            )
+        })
     }
 }
 
@@ -243,8 +258,7 @@ if (_ae_result !== undefined && _ae_result !== null) {{
     console.log("null");
 }}
 "#,
-        vars_block,
-        processed_code,
+        vars_block, processed_code,
     );
 
     let output = Command::new(runtime)
@@ -264,8 +278,12 @@ if (_ae_result !== undefined && _ae_result !== null) {{
     if stdout.is_empty() || stdout == "null" {
         Ok(serde_json::Value::Null)
     } else {
-        serde_json::from_str(&stdout)
-            .map_err(|e| format!("JS output is not valid JSON: {} (output was: {})", e, stdout))
+        serde_json::from_str(&stdout).map_err(|e| {
+            format!(
+                "JS output is not valid JSON: {} (output was: {})",
+                e, stdout
+            )
+        })
     }
 }
 
@@ -296,7 +314,11 @@ async fn run_text(code: &str, _inputs: &serde_json::Value) -> Result<serde_json:
     Ok(serde_json::Value::String(code.to_string()))
 }
 
-async fn execute_guest(lang: &GuestLang, code: &str, inputs: &serde_json::Value) -> Result<serde_json::Value, String> {
+async fn execute_guest(
+    lang: &GuestLang,
+    code: &str,
+    inputs: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
     match lang {
         GuestLang::Python => run_python(code, inputs).await,
         GuestLang::JS => run_js(code, inputs).await,
@@ -361,7 +383,8 @@ async fn heal_node_code(
         .await
         .map_err(|e| format!("Healing API call failed: {}", e))?;
 
-    let body: serde_json::Value = response.json()
+    let body: serde_json::Value = response
+        .json()
         .await
         .map_err(|e| format!("Healing response parse failed: {}", e))?;
 
@@ -383,11 +406,10 @@ pub fn eval_expr(expr: &Expr, ledger: &StateLedger) -> Result<serde_json::Value,
         Expr::Float(f) => Ok(serde_json::json!(*f)),
         Expr::Str(s) => Ok(serde_json::Value::String(s.clone())),
 
-        Expr::Address(addr) => {
-            ledger.read(addr)
-                .cloned()
-                .ok_or_else(|| format!("Address {} not found in ledger", addr))
-        }
+        Expr::Address(addr) => ledger
+            .read(addr)
+            .cloned()
+            .ok_or_else(|| format!("Address {} not found in ledger", addr)),
 
         Expr::Identifier(name) => {
             if let Some(v) = ledger.read(name) {
@@ -422,14 +444,16 @@ pub fn eval_expr(expr: &Expr, ledger: &StateLedger) -> Result<serde_json::Value,
             let k = eval_expr(key, ledger)?;
             if let Some(arr) = obj.as_array() {
                 if let Some(idx) = k.as_u64() {
-                    arr.get(idx as usize).cloned()
+                    arr.get(idx as usize)
+                        .cloned()
                         .ok_or_else(|| format!("Index {} out of bounds", idx))
                 } else {
                     Err(format!("Array index must be integer, got: {}", k))
                 }
             } else if let Some(map) = obj.as_object() {
                 if let Some(key_str) = k.as_str() {
-                    map.get(key_str).cloned()
+                    map.get(key_str)
+                        .cloned()
                         .ok_or_else(|| format!("Key '{}' not found in object", key_str))
                 } else {
                     Err(format!("Object key must be string, got: {}", k))
@@ -442,7 +466,8 @@ pub fn eval_expr(expr: &Expr, ledger: &StateLedger) -> Result<serde_json::Value,
         Expr::DotAccess { object, field } => {
             let obj = eval_expr(object, ledger)?;
             if let Some(map) = obj.as_object() {
-                map.get(field).cloned()
+                map.get(field)
+                    .cloned()
                     .ok_or_else(|| format!("Field '{}' not found in object", field))
             } else {
                 Err(format!("Cannot access field '{}' on: {}", field, obj))
@@ -450,23 +475,30 @@ pub fn eval_expr(expr: &Expr, ledger: &StateLedger) -> Result<serde_json::Value,
         }
 
         Expr::FuncCall { name, args } => {
-            let evaluated_args: Result<Vec<_>, _> = args.iter()
-                .map(|a| eval_expr(a, ledger))
-                .collect();
+            let evaluated_args: Result<Vec<_>, _> =
+                args.iter().map(|a| eval_expr(a, ledger)).collect();
             eval_builtin_func(name, &evaluated_args?)
         }
     }
 }
 
-fn eval_binop(left: &serde_json::Value, op: &BinOperator, right: &serde_json::Value) -> Result<serde_json::Value, String> {
+fn eval_binop(
+    left: &serde_json::Value,
+    op: &BinOperator,
+    right: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
     match op {
         BinOperator::Eq => Ok(serde_json::Value::Bool(left == right)),
         BinOperator::Ne => Ok(serde_json::Value::Bool(left != right)),
         BinOperator::And => Ok(serde_json::Value::Bool(is_truthy(left) && is_truthy(right))),
         BinOperator::Or => Ok(serde_json::Value::Bool(is_truthy(left) || is_truthy(right))),
         BinOperator::Gt | BinOperator::Lt | BinOperator::Ge | BinOperator::Le => {
-            let ln = left.as_f64().ok_or_else(|| format!("Cannot compare: {}", left))?;
-            let rn = right.as_f64().ok_or_else(|| format!("Cannot compare: {}", right))?;
+            let ln = left
+                .as_f64()
+                .ok_or_else(|| format!("Cannot compare: {}", left))?;
+            let rn = right
+                .as_f64()
+                .ok_or_else(|| format!("Cannot compare: {}", right))?;
             let result = match op {
                 BinOperator::Gt => ln > rn,
                 BinOperator::Lt => ln < rn,
@@ -476,18 +508,26 @@ fn eval_binop(left: &serde_json::Value, op: &BinOperator, right: &serde_json::Va
             };
             Ok(serde_json::Value::Bool(result))
         }
-        BinOperator::Add | BinOperator::Sub | BinOperator::Mul | BinOperator::Div | BinOperator::Mod => {
+        BinOperator::Add
+        | BinOperator::Sub
+        | BinOperator::Mul
+        | BinOperator::Div
+        | BinOperator::Mod => {
             if let (Some(ln), Some(rn)) = (left.as_f64(), right.as_f64()) {
                 let result = match op {
                     BinOperator::Add => ln + rn,
                     BinOperator::Sub => ln - rn,
                     BinOperator::Mul => ln * rn,
                     BinOperator::Div => {
-                        if rn == 0.0 { return Err("Division by zero".to_string()); }
+                        if rn == 0.0 {
+                            return Err("Division by zero".to_string());
+                        }
                         ln / rn
                     }
                     BinOperator::Mod => {
-                        if rn == 0.0 { return Err("Modulo by zero".to_string()); }
+                        if rn == 0.0 {
+                            return Err("Modulo by zero".to_string());
+                        }
                         ln % rn
                     }
                     _ => unreachable!(),
@@ -541,7 +581,9 @@ fn eval_builtin_func(name: &str, args: &[serde_json::Value]) -> Result<serde_jso
             Ok(serde_json::Value::String(t.to_string()))
         }
         "contains" => {
-            if args.len() != 2 { return Err("contains() requires 2 arguments".to_string()); }
+            if args.len() != 2 {
+                return Err("contains() requires 2 arguments".to_string());
+            }
             let haystack = &args[0];
             let needle = &args[1];
             match haystack {
@@ -556,7 +598,10 @@ fn eval_builtin_func(name: &str, args: &[serde_json::Value]) -> Result<serde_jso
         "keys" => {
             let arg = args.first().ok_or("keys() requires 1 argument")?;
             if let Some(obj) = arg.as_object() {
-                let keys: Vec<_> = obj.keys().map(|k| serde_json::Value::String(k.clone())).collect();
+                let keys: Vec<_> = obj
+                    .keys()
+                    .map(|k| serde_json::Value::String(k.clone()))
+                    .collect();
                 Ok(serde_json::Value::Array(keys))
             } else {
                 Err(format!("keys() requires an object, got: {}", arg))
@@ -597,7 +642,10 @@ fn build_output_map(blocks: &[Block]) -> HashMap<String, String> {
     map
 }
 
-fn topological_sort(nodes: &[&ActionNode], output_map: &HashMap<String, String>) -> Result<Vec<Vec<String>>, String> {
+fn topological_sort(
+    nodes: &[&ActionNode],
+    output_map: &HashMap<String, String>,
+) -> Result<Vec<Vec<String>>, String> {
     let node_ids: Vec<String> = nodes.iter().map(|n| n.id.clone()).collect();
     let mut in_degree: HashMap<String, usize> = HashMap::new();
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
@@ -611,7 +659,10 @@ fn topological_sort(nodes: &[&ActionNode], output_map: &HashMap<String, String>)
         for dep_addr in &node.depends_on {
             if let Some(producer_id) = output_map.get(dep_addr) {
                 if node_ids.contains(producer_id) {
-                    adjacency.get_mut(producer_id).unwrap().push(node.id.clone());
+                    adjacency
+                        .get_mut(producer_id)
+                        .unwrap()
+                        .push(node.id.clone());
                     *in_degree.get_mut(&node.id).unwrap() += 1;
                 }
             }
@@ -619,7 +670,8 @@ fn topological_sort(nodes: &[&ActionNode], output_map: &HashMap<String, String>)
     }
 
     let mut levels: Vec<Vec<String>> = Vec::new();
-    let mut queue: Vec<String> = in_degree.iter()
+    let mut queue: Vec<String> = in_degree
+        .iter()
         .filter(|(_, &deg)| deg == 0)
         .map(|(id, _)| id.clone())
         .collect();
@@ -672,7 +724,9 @@ impl Default for ExecutionConfig {
     }
 }
 
-pub async fn execute_program(program: AetherProgram) -> Result<ExecutionLog, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn execute_program(
+    program: AetherProgram,
+) -> Result<ExecutionLog, Box<dyn std::error::Error + Send + Sync>> {
     execute_with_config(program, ExecutionConfig::default()).await
 }
 
@@ -699,7 +753,8 @@ pub async fn execute_with_config(
         for block in &root.blocks {
             if let Block::Context(ctx) = block {
                 for (k, v) in &ctx.data {
-                    ledger.write(k, v.to_json(), None)
+                    ledger
+                        .write(k, v.to_json(), None)
                         .map_err(|e| format!("Context load error: {}", e))?;
                 }
             }
@@ -712,7 +767,9 @@ pub async fn execute_with_config(
 
         for block in &root.blocks {
             match block {
-                Block::Action(node) => { all_actions.push(node); }
+                Block::Action(node) => {
+                    all_actions.push(node);
+                }
                 Block::Parallel(par) => {
                     for node in &par.nodes {
                         all_actions.push(node);
@@ -729,7 +786,9 @@ pub async fn execute_with_config(
         // Build node_id → [dep_node_ids] map for Lens visualization
         let mut node_deps: HashMap<String, Vec<String>> = HashMap::new();
         for node in &all_actions {
-            let deps: Vec<String> = node.depends_on.iter()
+            let deps: Vec<String> = node
+                .depends_on
+                .iter()
                 .filter_map(|addr| output_map.get(addr))
                 .cloned()
                 .collect();
@@ -739,17 +798,22 @@ pub async fn execute_with_config(
         // Phase 4: Execute level by level
         let trace_start = trace.len();
         for level in &levels {
-            let level_nodes: Vec<&ActionNode> = level.iter()
+            let level_nodes: Vec<&ActionNode> = level
+                .iter()
                 .filter_map(|id| all_actions.iter().find(|n| n.id == *id))
                 .cloned()
                 .collect();
 
             if level_nodes.len() == 1 {
                 let node = level_nodes[0];
-                let result = run_node_with_retry(node, &mut ledger, &config, registry.as_ref()).await;
+                let result =
+                    run_node_with_retry(node, &mut ledger, &config, registry.as_ref()).await;
                 match result {
                     Ok(t) => trace.push(t),
-                    Err(t) => { nodes_failed += 1; trace.push(t); }
+                    Err(t) => {
+                        nodes_failed += 1;
+                        trace.push(t);
+                    }
                 }
             } else {
                 // Multiple independent nodes — run in parallel
@@ -772,13 +836,15 @@ pub async fn execute_with_config(
                             &mut local_ledger,
                             &local_config,
                             reg_clone.as_ref(),
-                        ).await;
+                        )
+                        .await;
                         (result, local_ledger)
                     }));
                 }
 
                 for handle in handles {
-                    let (result, local_ledger) = handle.await
+                    let (result, local_ledger) = handle
+                        .await
                         .map_err(|e| format!("Task join error: {}", e))?;
 
                     for (k, v) in local_ledger.export() {
@@ -787,7 +853,10 @@ pub async fn execute_with_config(
 
                     match result {
                         Ok(t) => trace.push(t),
-                        Err(t) => { nodes_failed += 1; trace.push(t); }
+                        Err(t) => {
+                            nodes_failed += 1;
+                            trace.push(t);
+                        }
                     }
                 }
             }
@@ -811,7 +880,11 @@ pub async fn execute_with_config(
             host_agent: "Aether_Kernel_v0.3".to_string(),
             timestamp_start: timestamp_start.to_rfc3339(),
             timestamp_end: timestamp_end.to_rfc3339(),
-            global_status: if nodes_failed == 0 { "SUCCESS".to_string() } else { "PARTIAL_FAILURE".to_string() },
+            global_status: if nodes_failed == 0 {
+                "SUCCESS".to_string()
+            } else {
+                "PARTIAL_FAILURE".to_string()
+            },
         },
         ledger: ledger.export(),
         trace,
@@ -837,9 +910,12 @@ async fn run_node_with_retry(
     registry: Option<&AslRegistry>,
 ) -> Result<NodeTrace, NodeTrace> {
     // Find the maximum retry count across all RETRY assertions
-    let max_retries = node.validation.as_ref()
+    let max_retries = node
+        .validation
+        .as_ref()
         .map(|assertions| {
-            assertions.iter()
+            assertions
+                .iter()
                 .filter_map(|a| match &a.on_fail {
                     HaltAction::Retry(n) => Some(n.unwrap_or(3)),
                     _ => None,
@@ -860,7 +936,10 @@ async fn run_node_with_retry(
         let is_retry_failure = match &last_result {
             Err(trace) => {
                 trace.status == "VALIDATION_FAILED"
-                    && trace.validation_results.iter().any(|r| !r.passed && r.action == "RETRY")
+                    && trace
+                        .validation_results
+                        .iter()
+                        .any(|r| !r.passed && r.action == "RETRY")
             }
             _ => false,
         };
@@ -870,12 +949,16 @@ async fn run_node_with_retry(
         }
 
         let failed_trace = last_result.as_ref().unwrap_err();
-        let failed_assertion = failed_trace.validation_results.iter()
+        let failed_assertion = failed_trace
+            .validation_results
+            .iter()
             .find(|r| !r.passed && r.action == "RETRY")
             .map(|r| r.assertion.clone())
             .unwrap_or_else(|| "assertion".to_string());
 
-        let intent = node.meta.as_ref()
+        let intent = node
+            .meta
+            .as_ref()
             .and_then(|m| m.intent.as_ref())
             .map(|s| s.as_str())
             .unwrap_or("unknown intent");
@@ -888,14 +971,27 @@ async fn run_node_with_retry(
             failed_assertion
         ));
 
-        match heal_node_code(intent, &node.language, &current_code, &failed_assertion, &actual_output).await {
+        match heal_node_code(
+            intent,
+            &node.language,
+            &current_code,
+            &failed_assertion,
+            &actual_output,
+        )
+        .await
+        {
             Ok(healed_code) => {
                 heal_log.push(format!("[attempt {}] LLM healing applied", attempt + 1));
                 current_code = healed_code;
-                last_result = execute_single_node(node, &current_code, ledger, config, registry).await;
+                last_result =
+                    execute_single_node(node, &current_code, ledger, config, registry).await;
             }
             Err(e) => {
-                heal_log.push(format!("[attempt {}] healing unavailable: {}", attempt + 1, e));
+                heal_log.push(format!(
+                    "[attempt {}] healing unavailable: {}",
+                    attempt + 1,
+                    e
+                ));
                 break;
             }
         }
@@ -903,8 +999,14 @@ async fn run_node_with_retry(
 
     // Attach heal_log to whichever trace we're returning
     match last_result {
-        Ok(mut t) => { t.heal_log = heal_log; Ok(t) }
-        Err(mut t) => { t.heal_log = heal_log; Err(t) }
+        Ok(mut t) => {
+            t.heal_log = heal_log;
+            Ok(t)
+        }
+        Err(mut t) => {
+            t.heal_log = heal_log;
+            Err(t)
+        }
     }
 }
 
@@ -914,22 +1016,28 @@ async fn run_node_with_retry(
 
 async fn execute_single_node(
     node: &ActionNode,
-    code: &str,                    // May differ from node.code on retry
+    code: &str, // May differ from node.code on retry
     ledger: &mut StateLedger,
     config: &ExecutionConfig,
     registry: Option<&AslRegistry>,
 ) -> Result<NodeTrace, NodeTrace> {
-    let intent = node.meta.as_ref()
+    let intent = node
+        .meta
+        .as_ref()
         .and_then(|m| m.intent.as_ref())
         .cloned()
         .unwrap_or_default();
 
-    let safety_label = node.meta.as_ref()
+    let safety_label = node
+        .meta
+        .as_ref()
         .and_then(|m| m.safety.as_ref())
         .map(|s| s.label().to_string())
         .unwrap_or_else(|| "L0 (Pure)".to_string());
 
-    let declared_safety_str = node.meta.as_ref()
+    let declared_safety_str = node
+        .meta
+        .as_ref()
         .and_then(|m| m.safety.as_ref())
         .map(|s| match s {
             SafetyLevel::L0Pure => "l0",
@@ -1020,9 +1128,10 @@ async fn execute_single_node(
     if let Some(inputs) = &node.inputs {
         for binding in inputs {
             let value = match &binding.source {
-                InputSource::Ref(addr) => {
-                    ledger.read(addr).cloned().unwrap_or(serde_json::Value::Null)
-                }
+                InputSource::Ref(addr) => ledger
+                    .read(addr)
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null),
                 InputSource::Literal(v) => v.to_json(),
             };
             input_data.insert(binding.address.clone(), value);
@@ -1031,7 +1140,13 @@ async fn execute_single_node(
     let inputs_json = serde_json::Value::Object(input_data);
 
     if asl_match.is_some() {
-        println!("  [EXEC] {} — {} [{}] ✓ ASL:{}", node.id, intent, safety_label, asl_match.as_deref().unwrap_or(""));
+        println!(
+            "  [EXEC] {} — {} [{}] ✓ ASL:{}",
+            node.id,
+            intent,
+            safety_label,
+            asl_match.as_deref().unwrap_or("")
+        );
     } else {
         println!("  [EXEC] {} — {} [{}]", node.id, intent, safety_label);
     }
@@ -1094,7 +1209,9 @@ async fn execute_single_node(
 
                     if !passed {
                         match &assertion.on_fail {
-                            HaltAction::Halt => { validation_failed = true; }
+                            HaltAction::Halt => {
+                                validation_failed = true;
+                            }
                             HaltAction::Warn => {
                                 eprintln!("  [WARN] Validation warning in node {}", node.id);
                             }
@@ -1142,21 +1259,19 @@ async fn execute_single_node(
                 })
             }
         }
-        Err(msg) => {
-            Err(NodeTrace {
-                node: node.id.clone(),
-                intent,
-                safety: safety_label,
-                status: "EXEC_ERROR".to_string(),
-                duration_ms: duration,
-                output: serde_json::json!({ "error": msg }),
-                validation_results: vec![],
-                depends_on: vec![],
-                asl_match,
-                asl_warnings,
-                heal_log: vec![],
-            })
-        }
+        Err(msg) => Err(NodeTrace {
+            node: node.id.clone(),
+            intent,
+            safety: safety_label,
+            status: "EXEC_ERROR".to_string(),
+            duration_ms: duration,
+            output: serde_json::json!({ "error": msg }),
+            validation_results: vec![],
+            depends_on: vec![],
+            asl_match,
+            asl_warnings,
+            heal_log: vec![],
+        }),
     }
 }
 
@@ -1166,9 +1281,12 @@ async fn execute_single_node(
 
 fn dedent(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
-    if lines.is_empty() { return String::new(); }
+    if lines.is_empty() {
+        return String::new();
+    }
 
-    let min_indent = lines.iter()
+    let min_indent = lines
+        .iter()
         .skip(1)
         .filter(|l| !l.trim().is_empty())
         .map(|l| l.len() - l.trim_start().len())
@@ -1187,7 +1305,9 @@ fn dedent(code: &str) -> String {
         std::cmp::min(first_line_indent, min_indent)
     };
 
-    lines.iter().enumerate()
+    lines
+        .iter()
+        .enumerate()
         .map(|(i, line)| {
             if line.trim().is_empty() {
                 String::new()

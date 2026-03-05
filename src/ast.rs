@@ -127,7 +127,7 @@ pub struct InputBinding {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum InputSource {
-    Ref(String),     // Ref($0xOther)
+    Ref(String), // Ref($0xOther)
     Literal(AetherValue),
 }
 
@@ -184,12 +184,18 @@ impl AetherType {
             Self::Int => val.is_i64() || val.is_u64(),
             Self::Float => val.is_f64(),
             Self::String | Self::JSONString => val.is_string(),
-            Self::JSON => val.is_object() || val.is_array() || val.is_string() || val.is_number() || val.is_boolean(),
+            Self::JSON => {
+                val.is_object()
+                    || val.is_array()
+                    || val.is_string()
+                    || val.is_number()
+                    || val.is_boolean()
+            }
             Self::JSONObject | Self::Map => val.is_object(),
             Self::List => val.is_array(),
-            Self::Blob => val.is_string(), // Base64 encoded
+            Self::Blob => val.is_string(),  // Base64 encoded
             Self::Tensor => val.is_array(), // N-dimensional array
-            Self::Ref => val.is_string(), // Memory address
+            Self::Ref => val.is_string(),   // Memory address
             Self::Table => val.is_array() || val.is_object(),
         }
     }
@@ -315,9 +321,19 @@ pub enum Expr {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BinOperator {
-    Eq, Ne, Gt, Lt, Ge, Le,
-    Add, Sub, Mul, Div, Mod,
-    And, Or,
+    Eq,
+    Ne,
+    Gt,
+    Lt,
+    Ge,
+    Le,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    And,
+    Or,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

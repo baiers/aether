@@ -1,16 +1,18 @@
-use pest_derive::Parser;
-use pest::Parser;
 use crate::ast::*;
+use pest::Parser;
+use pest_derive::Parser;
 use std::collections::HashMap;
 
 #[derive(Parser)]
 #[grammar = "aether.pest"]
 pub struct AetherParser;
 
-pub fn parse_aether(input: &str) -> Result<AetherProgram, Box<dyn std::error::Error + Send + Sync>> {
+pub fn parse_aether(
+    input: &str,
+) -> Result<AetherProgram, Box<dyn std::error::Error + Send + Sync>> {
     let mut roots = Vec::new();
-    let pairs = AetherParser::parse(Rule::program, input)
-        .map_err(|e| format!("Parse error: {}", e))?;
+    let pairs =
+        AetherParser::parse(Rule::program, input).map_err(|e| format!("Parse error: {}", e))?;
 
     for pair in pairs {
         match pair.as_rule() {
@@ -29,7 +31,9 @@ pub fn parse_aether(input: &str) -> Result<AetherProgram, Box<dyn std::error::Er
     Ok(AetherProgram { roots })
 }
 
-fn parse_root(pair: pest::iterators::Pair<Rule>) -> Result<RootBlock, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_root(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<RootBlock, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner = pair.into_inner();
     let id = inner.next().unwrap().as_str().to_string();
     let mut blocks = Vec::new();
@@ -44,7 +48,9 @@ fn parse_root(pair: pest::iterators::Pair<Rule>) -> Result<RootBlock, Box<dyn st
     Ok(RootBlock { id, blocks })
 }
 
-fn parse_block(pair: pest::iterators::Pair<Rule>) -> Result<Block, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_block(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Block, Box<dyn std::error::Error + Send + Sync>> {
     match pair.as_rule() {
         Rule::context_block => Ok(Block::Context(parse_context(pair)?)),
         Rule::action_node => Ok(Block::Action(parse_action(pair)?)),
@@ -55,13 +61,17 @@ fn parse_block(pair: pest::iterators::Pair<Rule>) -> Result<Block, Box<dyn std::
     }
 }
 
-fn parse_context(pair: pest::iterators::Pair<Rule>) -> Result<ContextBlock, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_context(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<ContextBlock, Box<dyn std::error::Error + Send + Sync>> {
     let mut id = None;
     let mut data = HashMap::new();
 
     for p in pair.into_inner() {
         match p.as_rule() {
-            Rule::hash => { id = Some(p.as_str().to_string()); }
+            Rule::hash => {
+                id = Some(p.as_str().to_string());
+            }
             Rule::ctx_pair => {
                 let mut inner = p.into_inner();
                 let first = inner.next().unwrap();
@@ -76,7 +86,9 @@ fn parse_context(pair: pest::iterators::Pair<Rule>) -> Result<ContextBlock, Box<
     Ok(ContextBlock { id, data })
 }
 
-fn parse_action(pair: pest::iterators::Pair<Rule>) -> Result<ActionNode, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_action(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<ActionNode, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner = pair.into_inner();
     let id = inner.next().unwrap().as_str().to_string();
     let content = inner.next().unwrap();
@@ -92,7 +104,9 @@ fn parse_action(pair: pest::iterators::Pair<Rule>) -> Result<ActionNode, Box<dyn
 
     for part in content.into_inner() {
         match part.as_rule() {
-            Rule::meta_block => { meta = Some(parse_meta(part)?); }
+            Rule::meta_block => {
+                meta = Some(parse_meta(part)?);
+            }
             Rule::in_block => {
                 let (bindings, deps) = parse_in_block(part)?;
                 inputs = Some(bindings);
@@ -109,18 +123,32 @@ fn parse_action(pair: pest::iterators::Pair<Rule>) -> Result<ActionNode, Box<dyn
                     .ok_or_else(|| format!("Unknown language: {}", lang_str))?;
                 code = exec_inner.next().unwrap().as_str().trim().to_string();
             }
-            Rule::out_block => { outputs = Some(parse_out_block(part)?); }
-            Rule::val_block => { validation = Some(parse_val_block(part)?); }
+            Rule::out_block => {
+                outputs = Some(parse_out_block(part)?);
+            }
+            Rule::val_block => {
+                validation = Some(parse_val_block(part)?);
+            }
             _ => (),
         }
     }
 
     Ok(ActionNode {
-        id, meta, inputs, condition, language, code, outputs, validation, depends_on,
+        id,
+        meta,
+        inputs,
+        condition,
+        language,
+        code,
+        outputs,
+        validation,
+        depends_on,
     })
 }
 
-fn parse_meta(pair: pest::iterators::Pair<Rule>) -> Result<MetaBlock, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_meta(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<MetaBlock, Box<dyn std::error::Error + Send + Sync>> {
     let mut intent = None;
     let mut safety = None;
     let mut extra = HashMap::new();
@@ -138,15 +166,23 @@ fn parse_meta(pair: pest::iterators::Pair<Rule>) -> Result<MetaBlock, Box<dyn st
                         safety = SafetyLevel::from_str(cleaned);
                     }
                 }
-                _ => { extra.insert(k, v); }
+                _ => {
+                    extra.insert(k, v);
+                }
             }
         }
     }
 
-    Ok(MetaBlock { intent, safety, extra })
+    Ok(MetaBlock {
+        intent,
+        safety,
+        extra,
+    })
 }
 
-fn parse_in_block(pair: pest::iterators::Pair<Rule>) -> Result<(Vec<InputBinding>, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
+fn parse_in_block(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<(Vec<InputBinding>, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
     let mut bindings = Vec::new();
     let mut deps = Vec::new();
 
@@ -194,7 +230,9 @@ fn parse_in_block(pair: pest::iterators::Pair<Rule>) -> Result<(Vec<InputBinding
     Ok((bindings, deps))
 }
 
-fn parse_out_block(pair: pest::iterators::Pair<Rule>) -> Result<Vec<OutputBinding>, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_out_block(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Vec<OutputBinding>, Box<dyn std::error::Error + Send + Sync>> {
     let mut bindings = Vec::new();
     for p in pair.into_inner() {
         if let Rule::type_pair = p.as_rule() {
@@ -203,13 +241,18 @@ fn parse_out_block(pair: pest::iterators::Pair<Rule>) -> Result<Vec<OutputBindin
             let type_str = inner.next().unwrap().as_str();
             let declared_type = AetherType::from_str(type_str)
                 .ok_or_else(|| format!("Unknown type: {}", type_str))?;
-            bindings.push(OutputBinding { address, declared_type });
+            bindings.push(OutputBinding {
+                address,
+                declared_type,
+            });
         }
     }
     Ok(bindings)
 }
 
-fn parse_val_block(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Assertion>, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_val_block(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Vec<Assertion>, Box<dyn std::error::Error + Send + Sync>> {
     let mut assertions = Vec::new();
     for p in pair.into_inner() {
         if let Rule::assertion = p.as_rule() {
@@ -224,14 +267,15 @@ fn parse_val_block(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Assertion>, 
     Ok(assertions)
 }
 
-fn parse_halt_action(pair: pest::iterators::Pair<Rule>) -> Result<HaltAction, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_halt_action(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<HaltAction, Box<dyn std::error::Error + Send + Sync>> {
     let text = pair.as_str();
     let inner: Vec<_> = pair.into_inner().collect();
     if text.starts_with("HALT") {
         Ok(HaltAction::Halt)
     } else if text.starts_with("RETRY") {
-        let retries = inner.first()
-            .and_then(|p| p.as_str().parse::<u32>().ok());
+        let retries = inner.first().and_then(|p| p.as_str().parse::<u32>().ok());
         Ok(HaltAction::Retry(retries))
     } else if text.starts_with("WARN") {
         Ok(HaltAction::Warn)
@@ -240,7 +284,9 @@ fn parse_halt_action(pair: pest::iterators::Pair<Rule>) -> Result<HaltAction, Bo
     }
 }
 
-fn parse_request(pair: pest::iterators::Pair<Rule>) -> Result<RequestBlock, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_request(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<RequestBlock, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner = pair.into_inner();
     let id = inner.next().unwrap().as_str().to_string();
     let content = inner.next().unwrap();
@@ -254,12 +300,24 @@ fn parse_request(pair: pest::iterators::Pair<Rule>) -> Result<RequestBlock, Box<
     for p in content.into_inner() {
         match p.as_rule() {
             Rule::sender_field => {
-                sender = Some(p.into_inner().next().unwrap().as_str()
-                    .trim_matches('"').to_string());
+                sender = Some(
+                    p.into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str()
+                        .trim_matches('"')
+                        .to_string(),
+                );
             }
             Rule::target_field => {
-                target = Some(p.into_inner().next().unwrap().as_str()
-                    .trim_matches('"').to_string());
+                target = Some(
+                    p.into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str()
+                        .trim_matches('"')
+                        .to_string(),
+                );
             }
             Rule::context_field => {
                 let mut ctx = HashMap::new();
@@ -272,8 +330,14 @@ fn parse_request(pair: pest::iterators::Pair<Rule>) -> Result<RequestBlock, Box<
                 context = Some(ctx);
             }
             Rule::instructions_field => {
-                instructions = Some(p.into_inner().next().unwrap().as_str()
-                    .trim_matches('"').to_string());
+                instructions = Some(
+                    p.into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str()
+                        .trim_matches('"')
+                        .to_string(),
+                );
             }
             Rule::pair => {
                 let (k, v) = parse_pair(p)?;
@@ -283,10 +347,19 @@ fn parse_request(pair: pest::iterators::Pair<Rule>) -> Result<RequestBlock, Box<
         }
     }
 
-    Ok(RequestBlock { id, sender, target, context, instructions, data })
+    Ok(RequestBlock {
+        id,
+        sender,
+        target,
+        context,
+        instructions,
+        data,
+    })
 }
 
-fn parse_failure(pair: pest::iterators::Pair<Rule>) -> Result<FailureBlock, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_failure(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<FailureBlock, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner = pair.into_inner();
     let id = inner.next().unwrap().as_str().to_string();
     let mut data = HashMap::new();
@@ -299,14 +372,20 @@ fn parse_failure(pair: pest::iterators::Pair<Rule>) -> Result<FailureBlock, Box<
     Ok(FailureBlock { id, data })
 }
 
-fn parse_parallel(pair: pest::iterators::Pair<Rule>) -> Result<ParallelBlock, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_parallel(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<ParallelBlock, Box<dyn std::error::Error + Send + Sync>> {
     let mut id = None;
     let mut nodes = Vec::new();
 
     for p in pair.into_inner() {
         match p.as_rule() {
-            Rule::hash => { id = Some(p.as_str().to_string()); }
-            Rule::action_node => { nodes.push(parse_action(p)?); }
+            Rule::hash => {
+                id = Some(p.as_str().to_string());
+            }
+            Rule::action_node => {
+                nodes.push(parse_action(p)?);
+            }
             _ => (),
         }
     }
@@ -316,12 +395,16 @@ fn parse_parallel(pair: pest::iterators::Pair<Rule>) -> Result<ParallelBlock, Bo
 
 // --- Expression parsing ---
 
-fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_expression(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let inner = pair.into_inner().next().unwrap();
     parse_or_expr(inner)
 }
 
-fn parse_or_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_or_expr(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut parts: Vec<_> = pair.into_inner().collect();
     let mut left = parse_and_expr(parts.remove(0))?;
     for part in parts {
@@ -335,7 +418,9 @@ fn parse_or_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std:
     Ok(left)
 }
 
-fn parse_and_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_and_expr(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut parts: Vec<_> = pair.into_inner().collect();
     let mut left = parse_not_expr(parts.remove(0))?;
     for part in parts {
@@ -349,18 +434,25 @@ fn parse_and_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std
     Ok(left)
 }
 
-fn parse_not_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_not_expr(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner: Vec<_> = pair.into_inner().collect();
     if inner.len() == 2 {
         // ! <not_expr>
         let expr = parse_not_expr(inner.remove(1))?;
-        Ok(Expr::UnaryOp { op: UnaryOperator::Not, expr: Box::new(expr) })
+        Ok(Expr::UnaryOp {
+            op: UnaryOperator::Not,
+            expr: Box::new(expr),
+        })
     } else {
         parse_comparison(inner.remove(0))
     }
 }
 
-fn parse_comparison(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_comparison(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner: Vec<_> = pair.into_inner().collect();
     let left = parse_additive(inner.remove(0))?;
     if inner.len() >= 2 {
@@ -375,13 +467,19 @@ fn parse_comparison(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn s
             _ => return Err(format!("Unknown comparison op: {}", op_str).into()),
         };
         let right = parse_additive(inner.remove(0))?;
-        Ok(Expr::BinOp { left: Box::new(left), op, right: Box::new(right) })
+        Ok(Expr::BinOp {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        })
     } else {
         Ok(left)
     }
 }
 
-fn parse_additive(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_additive(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner: Vec<_> = pair.into_inner().collect();
     let mut left = parse_multiplicative(inner.remove(0))?;
     while !inner.is_empty() {
@@ -392,12 +490,18 @@ fn parse_additive(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std
             _ => return Err(format!("Unknown additive op: {}", op_str).into()),
         };
         let right = parse_multiplicative(inner.remove(0))?;
-        left = Expr::BinOp { left: Box::new(left), op, right: Box::new(right) };
+        left = Expr::BinOp {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        };
     }
     Ok(left)
 }
 
-fn parse_multiplicative(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_multiplicative(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner: Vec<_> = pair.into_inner().collect();
     let mut left = parse_unary(inner.remove(0))?;
     while !inner.is_empty() {
@@ -409,22 +513,33 @@ fn parse_multiplicative(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<d
             _ => return Err(format!("Unknown multiplicative op: {}", op_str).into()),
         };
         let right = parse_unary(inner.remove(0))?;
-        left = Expr::BinOp { left: Box::new(left), op, right: Box::new(right) };
+        left = Expr::BinOp {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        };
     }
     Ok(left)
 }
 
-fn parse_unary(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_unary(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner: Vec<_> = pair.into_inner().collect();
     if inner.len() == 2 {
         let expr = parse_unary(inner.remove(1))?;
-        Ok(Expr::UnaryOp { op: UnaryOperator::Neg, expr: Box::new(expr) })
+        Ok(Expr::UnaryOp {
+            op: UnaryOperator::Neg,
+            expr: Box::new(expr),
+        })
     } else {
         parse_accessor(inner.remove(0))
     }
 }
 
-fn parse_accessor(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_accessor(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let mut inner: Vec<_> = pair.into_inner().collect();
     let mut expr = parse_atom(inner.remove(0))?;
 
@@ -433,11 +548,17 @@ fn parse_accessor(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std
             Rule::index_access => {
                 let key_pair = access.into_inner().next().unwrap();
                 let key = parse_expression(key_pair)?;
-                expr = Expr::Index { object: Box::new(expr), key: Box::new(key) };
+                expr = Expr::Index {
+                    object: Box::new(expr),
+                    key: Box::new(key),
+                };
             }
             Rule::dot_access => {
                 let field = access.into_inner().next().unwrap().as_str().to_string();
-                expr = Expr::DotAccess { object: Box::new(expr), field };
+                expr = Expr::DotAccess {
+                    object: Box::new(expr),
+                    field,
+                };
             }
             _ => (),
         }
@@ -446,7 +567,9 @@ fn parse_accessor(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std
     Ok(expr)
 }
 
-fn parse_atom(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_atom(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<Expr, Box<dyn std::error::Error + Send + Sync>> {
     let inner = pair.into_inner().next().unwrap();
     match inner.as_rule() {
         Rule::expression => parse_expression(inner),
@@ -458,7 +581,7 @@ fn parse_atom(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::er
         }
         Rule::string_literal => {
             let s = inner.as_str();
-            Ok(Expr::Str(s[1..s.len()-1].to_string()))
+            Ok(Expr::Str(s[1..s.len() - 1].to_string()))
         }
         Rule::number => {
             let s = inner.as_str();
@@ -468,12 +591,8 @@ fn parse_atom(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::er
                 Ok(Expr::Int(s.parse()?))
             }
         }
-        Rule::boolean => {
-            Ok(Expr::Bool(inner.as_str() == "true"))
-        }
-        Rule::address => {
-            Ok(Expr::Address(inner.as_str().to_string()))
-        }
+        Rule::boolean => Ok(Expr::Bool(inner.as_str() == "true")),
+        Rule::address => Ok(Expr::Address(inner.as_str().to_string())),
         Rule::identifier => {
             let name = inner.as_str();
             if name == "null" {
@@ -488,19 +607,23 @@ fn parse_atom(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Box<dyn std::er
 
 // --- Utility parsing ---
 
-fn parse_pair(pair: pest::iterators::Pair<Rule>) -> Result<(String, AetherValue), Box<dyn std::error::Error + Send + Sync>> {
+fn parse_pair(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<(String, AetherValue), Box<dyn std::error::Error + Send + Sync>> {
     let mut inner = pair.into_inner();
     let k = inner.next().unwrap().as_str().to_string();
     let v = parse_value(inner.next().unwrap())?;
     Ok((k, v))
 }
 
-fn parse_value(pair: pest::iterators::Pair<Rule>) -> Result<AetherValue, Box<dyn std::error::Error + Send + Sync>> {
+fn parse_value(
+    pair: pest::iterators::Pair<Rule>,
+) -> Result<AetherValue, Box<dyn std::error::Error + Send + Sync>> {
     let inner = pair.into_inner().next().unwrap();
     match inner.as_rule() {
         Rule::string_literal => {
             let s = inner.as_str();
-            Ok(AetherValue::String(s[1..s.len()-1].to_string()))
+            Ok(AetherValue::String(s[1..s.len() - 1].to_string()))
         }
         Rule::number => {
             let s = inner.as_str();
@@ -510,12 +633,8 @@ fn parse_value(pair: pest::iterators::Pair<Rule>) -> Result<AetherValue, Box<dyn
                 Ok(AetherValue::Int(s.parse()?))
             }
         }
-        Rule::boolean => {
-            Ok(AetherValue::Bool(inner.as_str() == "true"))
-        }
-        Rule::hash | Rule::address => {
-            Ok(AetherValue::String(inner.as_str().to_string()))
-        }
+        Rule::boolean => Ok(AetherValue::Bool(inner.as_str() == "true")),
+        Rule::hash | Rule::address => Ok(AetherValue::String(inner.as_str().to_string())),
         _ => {
             if inner.as_str() == "null" {
                 Ok(AetherValue::Null)

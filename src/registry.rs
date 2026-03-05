@@ -55,7 +55,8 @@ impl AslRegistry {
 
     /// List all entries in a namespace prefix (e.g. "std.io")
     pub fn namespace(&self, prefix: &str) -> Vec<&AslEntry> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter(|e| e.namespace == prefix)
             .collect()
     }
@@ -70,13 +71,14 @@ impl AslRegistry {
     pub fn check(&self, intent: &str, declared_safety: &str) -> RegistryCheck {
         match self.lookup(intent) {
             Some(entry) => {
-                let safety_matches = entry.safety.to_lowercase()
-                    == declared_safety.to_lowercase();
+                let safety_matches = entry.safety.to_lowercase() == declared_safety.to_lowercase();
 
                 let warning = if !safety_matches {
                     Some(format!(
                         "ASL safety mismatch: intent '{}' recommends '{}', declared '{}'",
-                        intent, entry.safety.to_uppercase(), declared_safety.to_uppercase()
+                        intent,
+                        entry.safety.to_uppercase(),
+                        declared_safety.to_uppercase()
                     ))
                 } else {
                     None

@@ -1,11 +1,11 @@
 use std::fs;
 
 use aether_kernel::ast::SafetyLevel;
+use aether_kernel::audit;
+use aether_kernel::executor::{execute_with_config, ExecutionConfig};
 use aether_kernel::parser::parse_aether;
-use aether_kernel::executor::{ExecutionConfig, execute_with_config};
 use aether_kernel::short;
 use aether_kernel::translate;
-use aether_kernel::audit;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -19,8 +19,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match args[1].as_str() {
         "translate" | "gen" => return cmd_translate(&args[2..]).await,
         "audit" => return cmd_audit(&args[2..]).await,
-        "--help" | "-h" => { print_usage(); return Ok(()); }
-        "--version" | "-v" => { println!("Aether Kernel v0.3.0"); return Ok(()); }
+        "--help" | "-h" => {
+            print_usage();
+            return Ok(());
+        }
+        "--version" | "-v" => {
+            println!("Aether Kernel v0.3.0");
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -41,10 +47,14 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
-            "--run" | "-r" => { run_after = true; }
+            "--run" | "-r" => {
+                run_after = true;
+            }
             "--output" | "-o" => {
                 i += 1;
-                if i < args.len() { output_path = Some(args[i].clone()); }
+                if i < args.len() {
+                    output_path = Some(args[i].clone());
+                }
             }
             "--safety" | "-s" => {
                 i += 1;
@@ -53,7 +63,9 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
                         .ok_or_else(|| format!("Unknown safety level: {}", args[i]))?;
                 }
             }
-            "--no-registry" => { no_registry = true; }
+            "--no-registry" => {
+                no_registry = true;
+            }
             "--help" | "-h" => {
                 print_translate_usage();
                 return Ok(());
@@ -67,7 +79,7 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
 
     let description = description.ok_or(
         "No description provided.\n\
-         Usage: aether translate \"<natural language description>\" [--run] [-o output.ae]"
+         Usage: aether translate \"<natural language description>\" [--run] [-o output.ae]",
     )?;
 
     println!("=== Aether English Toggle ===");
@@ -75,7 +87,8 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
     println!("Calling Claude...");
     println!();
 
-    let code = translate::translate(&description).await
+    let code = translate::translate(&description)
+        .await
         .map_err(|e| format!("Translation failed: {}", e))?;
 
     println!("{}", code);
@@ -92,11 +105,13 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
         println!();
         println!("=== Executing Generated Program ===");
 
-        let program = parse_aether(&code)
-            .map_err(|e| format!("Parse error in generated code: {}", e))?;
+        let program =
+            parse_aether(&code).map_err(|e| format!("Parse error in generated code: {}", e))?;
 
         let root_count = program.roots.len();
-        let node_count: usize = program.roots.iter()
+        let node_count: usize = program
+            .roots
+            .iter()
             .flat_map(|r| r.blocks.iter())
             .filter(|b| matches!(b, aether_kernel::ast::Block::Action(_)))
             .count();
@@ -114,11 +129,15 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
 
         println!("=== Execution Complete ===");
         println!("  Status: {}", log.sys.global_status);
-        println!("  Nodes: {} executed, {} failed",
-            log.telemetry.nodes_executed, log.telemetry.nodes_failed);
+        println!(
+            "  Nodes: {} executed, {} failed",
+            log.telemetry.nodes_executed, log.telemetry.nodes_failed
+        );
         println!("  Duration: {}ms", log.telemetry.total_duration_ms);
 
-        let healed_nodes: Vec<_> = log.trace.iter()
+        let healed_nodes: Vec<_> = log
+            .trace
+            .iter()
             .filter(|t| !t.heal_log.is_empty())
             .collect();
         if !healed_nodes.is_empty() {
@@ -150,7 +169,11 @@ async fn cmd_translate(args: &[String]) -> Result<(), Box<dyn std::error::Error 
                     format!("\"{}\"", v.as_str().unwrap())
                 } else {
                     let s = v.to_string();
-                    if s.len() > 80 { format!("{}...", &s[..80]) } else { s }
+                    if s.len() > 80 {
+                        format!("{}...", &s[..80])
+                    } else {
+                        s
+                    }
                 };
                 println!("  {} = {}", k, display);
             }
@@ -209,14 +232,14 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
     }
 
     let file_path = file_path.ok_or("No input file specified")?;
-    let raw = fs::read_to_string(&file_path)
-        .map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
+    let raw =
+        fs::read_to_string(&file_path).map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
 
     // Aether-Short: auto-expand .as files to full .ae before parsing
     let is_short = file_path.ends_with(".as");
     let content = if is_short {
-        let expanded = short::expand(&raw)
-            .map_err(|e| format!("Aether-Short expansion error: {}", e))?;
+        let expanded =
+            short::expand(&raw).map_err(|e| format!("Aether-Short expansion error: {}", e))?;
 
         if expand_only {
             println!("{}", expanded);
@@ -242,14 +265,18 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
     let program = parse_aether(&content)?;
 
     let root_count = program.roots.len();
-    let node_count: usize = program.roots.iter()
+    let node_count: usize = program
+        .roots
+        .iter()
         .flat_map(|r| r.blocks.iter())
         .filter(|b| matches!(b, aether_kernel::ast::Block::Action(_)))
         .count();
 
     println!("  {} root(s), {} action node(s)", root_count, node_count);
     println!("  Safety auto-approve: {}", safety_level.label());
-    if !no_registry { println!("  ASL registry: enabled"); }
+    if !no_registry {
+        println!("  ASL registry: enabled");
+    }
     println!();
     println!("Executing...");
 
@@ -263,12 +290,16 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
     println!();
     println!("=== Execution Complete ===");
     println!("  Status: {}", log.sys.global_status);
-    println!("  Nodes: {} executed, {} failed",
-        log.telemetry.nodes_executed, log.telemetry.nodes_failed);
+    println!(
+        "  Nodes: {} executed, {} failed",
+        log.telemetry.nodes_executed, log.telemetry.nodes_failed
+    );
     println!("  Duration: {}ms", log.telemetry.total_duration_ms);
 
     // Print self-healing summary
-    let healed_nodes: Vec<_> = log.trace.iter()
+    let healed_nodes: Vec<_> = log
+        .trace
+        .iter()
         .filter(|t| !t.heal_log.is_empty())
         .collect();
     if !healed_nodes.is_empty() {
@@ -295,7 +326,11 @@ async fn cmd_run(args: &[String]) -> Result<(), Box<dyn std::error::Error + Send
                 format!("\"{}\"", v.as_str().unwrap())
             } else {
                 let s = v.to_string();
-                if s.len() > 80 { format!("{}...", &s[..80]) } else { s }
+                if s.len() > 80 {
+                    format!("{}...", &s[..80])
+                } else {
+                    s
+                }
             };
             println!("  {} = {}", k, display);
         }
@@ -325,19 +360,22 @@ async fn cmd_audit(args: &[String]) -> Result<(), Box<dyn std::error::Error + Se
                 println!("Requires ANTHROPIC_API_KEY environment variable.");
                 return Ok(());
             }
-            path => { file_path = path.to_string(); }
+            path => {
+                file_path = path.to_string();
+            }
         }
     }
 
-    let log_json = fs::read_to_string(&file_path)
-        .map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
+    let log_json =
+        fs::read_to_string(&file_path).map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
 
     println!("=== Aether Audit ===");
     println!("Auditing: {}", file_path);
     println!("Calling Claude...");
     println!();
 
-    let report = audit::audit(&log_json).await
+    let report = audit::audit(&log_json)
+        .await
         .map_err(|e| format!("Audit failed: {}", e))?;
 
     println!("{}", report);

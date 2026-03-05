@@ -49,7 +49,11 @@ pub fn expand(source: &str) -> Result<String, String> {
 
         if let Some(rest) = trimmed.strip_prefix("@pipeline") {
             let id_part = rest.trim();
-            let pipeline_id = if id_part.is_empty() { "0xFF_MAIN" } else { id_part };
+            let pipeline_id = if id_part.is_empty() {
+                "0xFF_MAIN"
+            } else {
+                id_part
+            };
 
             output.push_str(&format!("\u{00a7}ROOT {} {{\n\n", pipeline_id));
 
@@ -70,8 +74,7 @@ pub fn expand(source: &str) -> Result<String, String> {
 
                 // Pass ::CTX blocks verbatim — already valid .ae syntax
                 if t.starts_with("::CTX") {
-                    let mut ctx_depth: i32 =
-                        t.chars().filter(|&c| c == '{').count() as i32
+                    let mut ctx_depth: i32 = t.chars().filter(|&c| c == '{').count() as i32
                         - t.chars().filter(|&c| c == '}').count() as i32;
                     output.push_str("  ");
                     output.push_str(t);
@@ -92,8 +95,7 @@ pub fn expand(source: &str) -> Result<String, String> {
                 // Node: $0xOUT: TYPE = @intent(args) [lang]? { code }
                 if t.starts_with('$') && t.contains('=') && t.contains('@') {
                     node_counter += 1;
-                    let (node_ae, consumed) =
-                        expand_node(t, &lines[i..], &registry, node_counter)?;
+                    let (node_ae, consumed) = expand_node(t, &lines[i..], &registry, node_counter)?;
                     i += consumed;
                     output.push_str(&node_ae);
                     continue;
@@ -185,7 +187,11 @@ fn expand_node(
                 "l4" => "system_root",
                 _ => "pure",
             };
-            let dl = entry.recommended_lang.as_deref().unwrap_or("PYTHON").to_string();
+            let dl = entry
+                .recommended_lang
+                .as_deref()
+                .unwrap_or("PYTHON")
+                .to_string();
             (s, dl)
         }
         None => ("pure", "PYTHON".to_string()),
@@ -296,7 +302,9 @@ fn collect_code_block(lines: &[&str]) -> Result<(String, Option<String>, usize),
                 code_lines.push(before.to_string());
             }
             let after = trimmed[pos + 1..].trim();
-            let validate_clause = after.strip_prefix('|').map(|stripped| stripped.trim().to_string());
+            let validate_clause = after
+                .strip_prefix('|')
+                .map(|stripped| stripped.trim().to_string());
             return Ok((code_lines.join("\n"), validate_clause, consumed));
         }
 

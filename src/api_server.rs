@@ -19,8 +19,8 @@ use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 
 use aether_kernel::ast::SafetyLevel;
+use aether_kernel::executor::{execute_with_config, ExecutionConfig, ExecutionLog};
 use aether_kernel::parser::parse_aether;
-use aether_kernel::executor::{ExecutionConfig, ExecutionLog, execute_with_config};
 
 // =============================================================================
 // API Types
@@ -66,23 +66,29 @@ async fn validate(Json(req): Json<ValidateRequest>) -> (StatusCode, Json<Value>)
     match parse_aether(&req.code) {
         Ok(program) => {
             let root_count = program.roots.len();
-            let node_count: usize = program.roots.iter()
+            let node_count: usize = program
+                .roots
+                .iter()
                 .flat_map(|r| r.blocks.iter())
                 .filter(|b| matches!(b, aether_kernel::ast::Block::Action(_)))
                 .count();
 
-            (StatusCode::OK, Json(json!({
-                "valid": true,
-                "roots": root_count,
-                "action_nodes": node_count
-            })))
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "valid": true,
+                    "roots": root_count,
+                    "action_nodes": node_count
+                })),
+            )
         }
-        Err(e) => {
-            (StatusCode::BAD_REQUEST, Json(json!({
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
                 "valid": false,
                 "error": e.to_string()
-            })))
-        }
+            })),
+        ),
     }
 }
 
@@ -93,24 +99,38 @@ async fn execute(
     let safety_str = req.safety_level.as_deref().unwrap_or("l2");
     let safety_level = match SafetyLevel::from_str(safety_str) {
         Some(l) => l,
-        None => return (StatusCode::BAD_REQUEST, Json(json!({
-            "error": format!("Unknown safety level: {}", safety_str)
-        }))),
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": format!("Unknown safety level: {}", safety_str)
+                })),
+            )
+        }
     };
 
     let program = match parse_aether(&req.code) {
         Ok(p) => p,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(json!({
-            "error": format!("Parse error: {}", e)
-        }))),
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": format!("Parse error: {}", e)
+                })),
+            )
+        }
     };
 
-    let config = ExecutionConfig { auto_approve_level: safety_level, ..ExecutionConfig::default() };
+    let config = ExecutionConfig {
+        auto_approve_level: safety_level,
+        ..ExecutionConfig::default()
+    };
 
     match execute_with_config(program, config).await {
         Ok(log) => {
             let exec_id = log.sys.execution_id.clone();
-            let result = serde_json::to_value(&log).unwrap_or(json!({"error": "serialization failed"}));
+            let result =
+                serde_json::to_value(&log).unwrap_or(json!({"error": "serialization failed"}));
 
             // Store for inspection
             let mut logs = state.logs.lock().await;
@@ -118,11 +138,12 @@ async fn execute(
 
             (StatusCode::OK, Json(result))
         }
-        Err(e) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
                 "error": format!("Execution error: {}", e)
-            })))
-        }
+            })),
+        ),
     }
 }
 
@@ -133,15 +154,17 @@ async fn inspect(
     let logs = state.logs.lock().await;
     match logs.get(&req.execution_id) {
         Some(log) => {
-            let result = serde_json::to_value(log).unwrap_or(json!({"error": "serialization failed"}));
+            let result =
+                serde_json::to_value(log).unwrap_or(json!({"error": "serialization failed"}));
             (StatusCode::OK, Json(result))
         }
-        None => {
-            (StatusCode::NOT_FOUND, Json(json!({
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
                 "error": "Execution log not found",
                 "execution_id": req.execution_id
-            })))
-        }
+            })),
+        ),
     }
 }
 

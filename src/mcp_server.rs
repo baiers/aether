@@ -10,9 +10,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use aether_kernel::ast::SafetyLevel;
-use aether_kernel::parser::parse_aether;
-use aether_kernel::executor::{ExecutionConfig, ExecutionLog, execute_with_config};
 use aether_kernel::audit;
+use aether_kernel::executor::{execute_with_config, ExecutionConfig, ExecutionLog};
+use aether_kernel::parser::parse_aether;
 
 // =============================================================================
 // JSON-RPC Types
@@ -141,14 +141,17 @@ async fn handle_tool_call(
 ) -> Result<Value, String> {
     match name {
         "aether_validate" => {
-            let code = arguments.get("code")
+            let code = arguments
+                .get("code")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing 'code' argument")?;
 
             match parse_aether(code) {
                 Ok(program) => {
                     let root_count = program.roots.len();
-                    let node_count: usize = program.roots.iter()
+                    let node_count: usize = program
+                        .roots
+                        .iter()
                         .flat_map(|r| r.blocks.iter())
                         .filter(|b| matches!(b, aether_kernel::ast::Block::Action(_)))
                         .count();
@@ -160,38 +163,41 @@ async fn handle_tool_call(
                         "program": program
                     }))
                 }
-                Err(e) => {
-                    Ok(json!({
-                        "valid": false,
-                        "error": e.to_string()
-                    }))
-                }
+                Err(e) => Ok(json!({
+                    "valid": false,
+                    "error": e.to_string()
+                })),
             }
         }
 
         "aether_execute" => {
-            let code = arguments.get("code")
+            let code = arguments
+                .get("code")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing 'code' argument")?;
 
-            let safety_str = arguments.get("safety_level")
+            let safety_str = arguments
+                .get("safety_level")
                 .and_then(|v| v.as_str())
                 .unwrap_or("l2");
 
             let safety_level = SafetyLevel::from_str(safety_str)
                 .ok_or_else(|| format!("Unknown safety level: {}", safety_str))?;
 
-            let program = parse_aether(code)
-                .map_err(|e| format!("Parse error: {}", e))?;
+            let program = parse_aether(code).map_err(|e| format!("Parse error: {}", e))?;
 
-            let config = ExecutionConfig { auto_approve_level: safety_level, ..ExecutionConfig::default() };
+            let config = ExecutionConfig {
+                auto_approve_level: safety_level,
+                ..ExecutionConfig::default()
+            };
 
-            let log = execute_with_config(program, config).await
+            let log = execute_with_config(program, config)
+                .await
                 .map_err(|e| format!("Execution error: {}", e))?;
 
             let exec_id = log.sys.execution_id.clone();
-            let result = serde_json::to_value(&log)
-                .map_err(|e| format!("Serialization error: {}", e))?;
+            let result =
+                serde_json::to_value(&log).map_err(|e| format!("Serialization error: {}", e))?;
 
             // Store for later inspection
             let mut s = state.lock().await;
@@ -201,33 +207,33 @@ async fn handle_tool_call(
         }
 
         "aether_audit" => {
-            let log_json = arguments.get("execution_log")
+            let log_json = arguments
+                .get("execution_log")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing 'execution_log' argument")?;
 
-            let report = audit::audit(log_json).await
+            let report = audit::audit(log_json)
+                .await
                 .map_err(|e| format!("Audit failed: {}", e))?;
 
             Ok(json!({ "report": report }))
         }
 
         "aether_inspect" => {
-            let exec_id = arguments.get("execution_id")
+            let exec_id = arguments
+                .get("execution_id")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing 'execution_id' argument")?;
 
             let s = state.lock().await;
             match s.execution_logs.get(exec_id) {
                 Some(log) => {
-                    serde_json::to_value(log)
-                        .map_err(|e| format!("Serialization error: {}", e))
+                    serde_json::to_value(log).map_err(|e| format!("Serialization error: {}", e))
                 }
-                None => {
-                    Ok(json!({
-                        "error": "Execution log not found",
-                        "execution_id": exec_id
-                    }))
-                }
+                None => Ok(json!({
+                    "error": "Execution log not found",
+                    "execution_id": exec_id
+                })),
             }
         }
 
@@ -273,7 +279,11 @@ async fn main() {
                         data: None,
                     }),
                 };
-                let _ = writeln!(stdout.lock(), "{}", serde_json::to_string(&err_response).unwrap());
+                let _ = writeln!(
+                    stdout.lock(),
+                    "{}",
+                    serde_json::to_string(&err_response).unwrap()
+                );
                 continue;
             }
         };
@@ -281,78 +291,64 @@ async fn main() {
         let id = request.id.clone().unwrap_or(Value::Null);
 
         let response = match request.method.as_str() {
-            "initialize" => {
-                JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id,
-                    result: Some(handle_initialize(request.params)),
-                    error: None,
-                }
-            }
+            "initialize" => JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id,
+                result: Some(handle_initialize(request.params)),
+                error: None,
+            },
 
             "notifications/initialized" => continue, // No response needed
 
-            "tools/list" => {
-                JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id,
-                    result: Some(handle_tools_list()),
-                    error: None,
-                }
-            }
+            "tools/list" => JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id,
+                result: Some(handle_tools_list()),
+                error: None,
+            },
 
             "tools/call" => {
                 let params = request.params.unwrap_or(json!({}));
-                let tool_name = params.get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let arguments = params.get("arguments")
-                    .cloned()
-                    .unwrap_or(json!({}));
+                let tool_name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                let arguments = params.get("arguments").cloned().unwrap_or(json!({}));
 
                 match handle_tool_call(tool_name, &arguments, &state).await {
-                    Ok(result) => {
-                        JsonRpcResponse {
-                            jsonrpc: "2.0".to_string(),
-                            id,
-                            result: Some(json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": serde_json::to_string_pretty(&result).unwrap_or_default()
-                                }]
-                            })),
-                            error: None,
-                        }
-                    }
-                    Err(e) => {
-                        JsonRpcResponse {
-                            jsonrpc: "2.0".to_string(),
-                            id,
-                            result: Some(json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": format!("Error: {}", e)
-                                }],
-                                "isError": true
-                            })),
-                            error: None,
-                        }
-                    }
+                    Ok(result) => JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        id,
+                        result: Some(json!({
+                            "content": [{
+                                "type": "text",
+                                "text": serde_json::to_string_pretty(&result).unwrap_or_default()
+                            }]
+                        })),
+                        error: None,
+                    },
+                    Err(e) => JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        id,
+                        result: Some(json!({
+                            "content": [{
+                                "type": "text",
+                                "text": format!("Error: {}", e)
+                            }],
+                            "isError": true
+                        })),
+                        error: None,
+                    },
                 }
             }
 
-            _ => {
-                JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id,
-                    result: None,
-                    error: Some(JsonRpcError {
-                        code: -32601,
-                        message: format!("Method not found: {}", request.method),
-                        data: None,
-                    }),
-                }
-            }
+            _ => JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id,
+                result: None,
+                error: Some(JsonRpcError {
+                    code: -32601,
+                    message: format!("Method not found: {}", request.method),
+                    data: None,
+                }),
+            },
         };
 
         let response_json = serde_json::to_string(&response).unwrap();
