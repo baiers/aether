@@ -28,7 +28,9 @@ Everything you need to write, run, and integrate Aether programs:
 
 ---
 
-## Pro Tier — $29/month
+## Pro Tier — $29/month *(coming soon)*
+
+> **Status: under development.** Pro cloud infrastructure is not yet live. Join the [waitlist / discussion](https://github.com/baiers/aether/discussions) to be notified at launch.
 
 For individuals and teams who want managed execution without running their own infrastructure or managing API keys:
 
@@ -46,7 +48,9 @@ For individuals and teams who want managed execution without running their own i
 
 ---
 
-## Enterprise Tier — Custom Contract
+## Enterprise Tier — Custom Contract *(coming soon)*
+
+> **Status: under development.** Enterprise licensing and on-premise packaging are not yet available. Reach out via [GitHub Discussions](https://github.com/baiers/aether/discussions) to discuss early access.
 
 For organizations requiring on-premise deployment, compliance, and team governance:
 

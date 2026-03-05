@@ -192,7 +192,7 @@ python/       pip-installable wrapper (aether-kernel)
 | REST API | ✓ |
 | Aether Lens DAG visualizer | ✓ |
 
-**Aether Pro** — hosted execution, managed LLM calls (no API key needed), extended ASL (200+ intents), persistent history. [Learn more →](https://aether-lang.dev/pro)
+**Aether Pro** *(coming soon)* — hosted execution, managed LLM calls (no API key needed), extended ASL (200+ intents), persistent history. [Join the waitlist →](https://github.com/baiers/aether/discussions)
 
 ## License
 
